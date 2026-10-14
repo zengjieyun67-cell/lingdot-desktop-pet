@@ -1,0 +1,56 @@
+name: Build macOS DMG
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14   # Apple Silicon
+            target: aarch64-apple-darwin
+          - runner: macos-13   # Intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: "apps/desktop/src-tauri -> target" }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r test
+      - run: pnpm test:rust
+      - run: pnpm --filter @desktop-pet/browser-extension build
+      - run: pnpm --filter @desktop-pet/desktop tauri build --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DesktopPet-${{ matrix.target }}
+          path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+      - run: cd apps/browser-extension && zip -r ../../browser-extension.zip dist
+        if: matrix.target == 'aarch64-apple-darwin'
+      - uses: actions/upload-artifact@v4
+        if: matrix.target == 'aarch64-apple-darwin'
+        with: { name: browser-extension, path: browser-extension.zip }
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out }
+      - run: ls -R out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: 小喵桌宠 build ${{ github.run_number }}
+          files: |
+            out/**/*.dmg
+            out/**/*.zip
