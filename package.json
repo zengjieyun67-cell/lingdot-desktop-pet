@@ -1,0 +1,16 @@
+{
+  "name": "desktop-pet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "桌面智能桌宠 — macOS desktop pet with task monitoring",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dev:desktop": "pnpm --filter @desktop-pet/desktop tauri dev",
+    "build:desktop": "pnpm --filter @desktop-pet/desktop tauri build",
+    "build:extension": "pnpm --filter @desktop-pet/browser-extension build",
+    "test:rust": "cd apps/desktop/src-tauri && cargo test -p pet-core"
+  }
+}
