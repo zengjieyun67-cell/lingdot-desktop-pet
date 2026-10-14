@@ -1,0 +1,295 @@
+/* Live2D-style motion for the layered SVG catgirl.
+   Transform origins are in SVG view-box coordinates (viewBox 0 0 200 240). */
+
+.root {
+  --lx: 0; /* -1..1 cursor direction, set from JS */
+  --ly: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+.svg * {
+  transform-box: view-box;
+}
+
+/* ---------------- idle layer animations ---------------- */
+
+.breath {
+  transform-origin: 100px 226px;
+  animation: breath 3.4s ease-in-out infinite;
+}
+@keyframes breath {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(-1.6px) scale(1.006, 1.014); }
+}
+
+.headFollow {
+  transform-origin: 100px 150px;
+  transform: translate(calc(var(--lx) * 3.2px), calc(var(--ly) * 2.2px)) rotate(calc(var(--lx) * 4deg));
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.head {
+  transform-origin: 100px 150px;
+  animation: headSway 6.5s ease-in-out infinite;
+}
+@keyframes headSway {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-1.6deg); }
+  65% { transform: rotate(1.3deg); }
+}
+
+.pupils {
+  transform: translate(calc(var(--lx) * 3.4px), calc(var(--ly) * 2.6px));
+  transition: transform 0.18s ease-out;
+}
+
+.eyeL { transform-origin: 80px 109px; transition: transform 0.07s ease-in; }
+.eyeR { transform-origin: 120px 109px; transition: transform 0.07s ease-in; }
+.blinking .eyeL,
+.blinking .eyeR {
+  transform: scaleY(0.08);
+}
+
+.earL {
+  transform-origin: 70px 66px;
+  animation: earTwitchL 5.3s ease-in-out infinite;
+  transition: transform 0.25s;
+}
+.earR {
+  transform-origin: 130px 66px;
+  animation: earTwitchR 7.1s ease-in-out infinite 1.2s;
+  transition: transform 0.25s;
+}
+@keyframes earTwitchL {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  91% { transform: rotate(-9deg); }
+  94% { transform: rotate(2deg); }
+  96% { transform: rotate(-4deg); }
+}
+@keyframes earTwitchR {
+  0%, 86%, 100% { transform: rotate(0deg); }
+  89% { transform: rotate(9deg); }
+  92% { transform: rotate(-2deg); }
+  95% { transform: rotate(4deg); }
+}
+
+.tailWrap {
+  transform-origin: 124px 206px;
+}
+.tail {
+  transform-origin: 124px 206px;
+  animation: tailSway 2.8s ease-in-out infinite alternate;
+}
+@keyframes tailSway {
+  0% { transform: rotate(-7deg); }
+  100% { transform: rotate(9deg); }
+}
+
+.ahoge {
+  transform-origin: 100px 46px;
+  animation: ahoge 2.2s ease-in-out infinite alternate;
+}
+@keyframes ahoge {
+  0% { transform: rotate(-6deg); }
+  100% { transform: rotate(8deg); }
+}
+
+.bell {
+  transform-origin: 100px 166px;
+  animation: bell 3.4s ease-in-out infinite;
+}
+@keyframes bell {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(6deg); }
+}
+
+.pawL { transform-origin: 80px 196px; }
+.pawR { transform-origin: 120px 196px; }
+
+/* ---------------- variant layers (hidden by default) ---------------- */
+
+.laptop,
+.sparkles,
+.heart,
+.alert,
+.eyesHappy,
+.mouthHappy,
+.mouthAlert {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.eyes, .mouthIdle { transition: opacity 0.2s ease; }
+
+.character { transform-origin: 100px 228px; }
+.shadow { transform-origin: 100px 229px; }
+
+/* ---------------- 小喵 emotions (combined with task moods; moods below win on conflicts) ---------------- */
+
+.eyesSleepy, .cheeks, .mouthPout, .mouthShy, .markAnger, .markZzz, .markHeart {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.blush { transition: opacity 0.3s ease; }
+
+.emoHappy .blush { opacity: 0.75; }
+.emoHappy .markHeart { opacity: 1; transform-origin: 44px 70px; animation: heartPop 2.4s ease-out infinite; }
+.emoHappy .earL { transform: rotate(-4deg) translateY(-2px); }
+.emoHappy .earR { transform: rotate(4deg) translateY(-2px); }
+
+.emoShy .blush { opacity: 0.95; }
+.emoShy .pupils { transform: translate(-3.5px, 2px); }
+.emoShy .mouthIdle { opacity: 0; }
+.emoShy .mouthShy { opacity: 1; }
+.emoShy .earL { animation: none; transform: rotate(-16deg) translate(-2px, 4px); }
+.emoShy .earR { animation: none; transform: rotate(16deg) translate(2px, 4px); }
+.emoShy .tail { animation-duration: 4s; }
+
+.emoAngry .cheeks { opacity: 1; }
+.emoAngry .blush { opacity: 0; }
+.emoAngry .mouthIdle { opacity: 0; }
+.emoAngry .mouthPout { opacity: 1; }
+.emoAngry .markAnger { opacity: 1; transform-origin: 145px 62px; animation: angerPulse 0.9s ease-in-out infinite; }
+.emoAngry .earL { animation: none; transform: rotate(-30deg) translate(-4px, 8px); }
+.emoAngry .earR { animation: none; transform: rotate(30deg) translate(4px, 8px); }
+.emoAngry .tail { animation-duration: 0.6s; }
+.emoAngry .headFollow { transform: translate(calc(var(--lx) * -2px), 0) rotate(calc(var(--lx) * -5deg - 3deg)); }
+@keyframes angerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.emoSleepy .eyesSleepy { opacity: 1; }
+.emoSleepy .pupils { transform: translate(0, 3px); }
+.emoSleepy .markZzz { opacity: 1; animation: zzz 3s ease-in-out infinite; }
+.emoSleepy .breath { animation-duration: 5.5s; }
+.emoSleepy .earL { animation: none; transform: rotate(-12deg) translate(-1px, 5px); }
+.emoSleepy .earR { animation: none; transform: rotate(12deg) translate(1px, 5px); }
+.emoSleepy .tail { animation-duration: 5s; }
+.emoSleepy .ahoge { animation-duration: 4s; }
+@keyframes zzz {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ---------------- working: typing on a laptop + sparkles ---------------- */
+
+.working .laptop { opacity: 1; }
+.working .sparkles { opacity: 1; }
+.working .breath { animation: workBob 0.9s ease-in-out infinite; }
+.working .pawL { animation: typeL 0.32s ease-in-out infinite alternate; }
+.working .pawR { animation: typeR 0.32s ease-in-out infinite alternate 0.16s; }
+.working .pupils { transform: translate(calc(var(--lx) * 1.5px), 2.6px); }
+.working .tail { animation-duration: 1.4s; }
+@keyframes workBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.2px); }
+}
+@keyframes typeL {
+  0% { transform: translateY(-5px); }
+  100% { transform: translateY(-1px); }
+}
+@keyframes typeR {
+  0% { transform: translateY(-5px); }
+  100% { transform: translateY(-1px); }
+}
+.sparkle1, .sparkle2, .sparkle3 {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: twinkle 1.4s ease-in-out infinite;
+}
+.sparkle2 { animation-delay: 0.45s; }
+.sparkle3 { animation-delay: 0.9s; }
+@keyframes twinkle {
+  0%, 100% { transform: scale(0.3) rotate(0deg); opacity: 0.2; }
+  50% { transform: scale(1.1) rotate(45deg); opacity: 1; }
+}
+
+/* ---------------- completed: happy jump + heart ---------------- */
+
+.completed .eyes, .completed .mouthIdle { opacity: 0; }
+.completed .eyesHappy, .completed .mouthHappy { opacity: 1; }
+.completed .character { animation: hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite; }
+.completed .shadow { animation: hopShadow 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite; }
+.completed .heart {
+  opacity: 1;
+  transform-origin: 154px 58px;
+  animation: heartPop 1.6s ease-out infinite;
+}
+.completed .tail { animation-duration: 0.7s; }
+.completed .blush { opacity: 0.8; }
+@keyframes hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  10% { transform: translateY(0) scale(1.04, 0.95); }
+  28% { transform: translateY(-20px) scale(0.97, 1.04); }
+  46% { transform: translateY(0) scale(1.05, 0.95); }
+  56% { transform: translateY(-6px) scale(1, 1); }
+  66% { transform: translateY(0) scale(1, 1); }
+}
+@keyframes hopShadow {
+  0%, 100%, 46%, 66% { transform: scale(1); opacity: 0.16; }
+  28% { transform: scale(0.75); opacity: 0.08; }
+}
+@keyframes heartPop {
+  0% { transform: translateY(8px) scale(0.2); opacity: 0; }
+  20% { transform: translateY(0) scale(1.15); opacity: 1; }
+  35% { transform: translateY(-2px) scale(0.95); }
+  80% { transform: translateY(-14px) scale(1); opacity: 1; }
+  100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
+}
+
+/* ---------------- needs_attention: ears up, alert bubble ---------------- */
+
+.needsAttention .earL { animation: none; transform: rotate(-10deg) translateY(-3px) scale(1.05); }
+.needsAttention .earR { animation: none; transform: rotate(10deg) translateY(-3px) scale(1.05); }
+.needsAttention .mouthIdle { opacity: 0; }
+.needsAttention .mouthAlert { opacity: 1; }
+.needsAttention .eyeL, .needsAttention .eyeR { transform: scale(1.08); }
+.needsAttention .blinking .eyeL, .needsAttention.blinking .eyeL,
+.needsAttention.blinking .eyeR { transform: scaleY(0.08); }
+.needsAttention .head { animation: alertShake 2.4s ease-in-out infinite; }
+.needsAttention .tail { animation: tailUp 0.5s ease-in-out infinite alternate; }
+.needsAttention .alert {
+  opacity: 1;
+  transform-origin: 157px 60px;
+  animation: alertBounce 1s ease-in-out infinite;
+}
+@keyframes alertBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-5px) scale(1.08); }
+  60% { transform: translateY(0) scale(0.98); }
+}
+@keyframes alertShake {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  75% { transform: rotate(-3deg); }
+  80% { transform: rotate(3deg); }
+  85% { transform: rotate(-2deg); }
+  90% { transform: rotate(1deg); }
+}
+@keyframes tailUp {
+  0% { transform: rotate(-14deg); }
+  100% { transform: rotate(-4deg); }
+}
+
+/* ---------------- animations disabled ---------------- */
+
+.still *,
+.still *::before,
+.still *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root * { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
+}
