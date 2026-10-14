@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 10 syntax
+onlyBuiltDependencies:
+  - esbuild
+# pnpm 11+ syntax
+allowBuilds:
+  esbuild: true
