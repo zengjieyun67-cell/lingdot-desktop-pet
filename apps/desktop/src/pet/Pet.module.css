@@ -1,0 +1,90 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  overflow: hidden;
+}
+.wrap:active { cursor: grabbing; }
+
+.stage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.bubble {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  padding: 7px 10px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: 0 6px 20px rgba(60, 40, 110, 0.18), inset 0 0 0 0.5px rgba(255, 255, 255, 0.9);
+  color: #2b2340;
+  font-size: 11.5px;
+  line-height: 1.35;
+  cursor: pointer;
+  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+  z-index: 3;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.82);
+  border-bottom: 0;
+}
+.bubbleTitle { font-weight: 650; display: block; margin-bottom: 1px; }
+.bubbleBody {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  opacity: 0.85;
+}
+.bubbleHint { display: block; margin-top: 3px; font-size: 10px; color: #7a6aa8; }
+
+@keyframes pop {
+  from { transform: translateY(6px) scale(0.85); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* Mood badges used on top of a Live2D model (which may lack matching motions). */
+.badge {
+  position: absolute;
+  top: 18%;
+  right: 12%;
+  font-size: 26px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+  animation: float 1.2s ease-in-out infinite alternate;
+  z-index: 2;
+  pointer-events: none;
+}
+@keyframes float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}
+.still .badge { animation: none; }
+
+/* 小喵's in-character line */
+.bubbleSay {
+  display: block;
+  font-size: 12px;
+  font-weight: 560;
+  color: #3a2d5c;
+  line-height: 1.45;
+}
+.bubbleSay + .bubbleBody { margin-top: 3px; font-size: 10.5px; }
+.bubbleLine { cursor: default; }
