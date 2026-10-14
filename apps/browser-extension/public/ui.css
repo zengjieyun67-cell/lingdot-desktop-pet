@@ -1,0 +1,27 @@
+:root { --text:#241d38; --text2:#6a6187; --line:rgba(60,40,110,.1); --accent:#8263ee; --green:#2fb67c; --red:#ec5a6f; --amber:#e39320; --bg:#faf8ff; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) { :root { --text:#f2eefc; --text2:#b6add0; --line:rgba(255,255,255,.1); --bg:#221c32; } }
+* { box-sizing: border-box; }
+body { margin:0; font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", sans-serif; color:var(--text); background:var(--bg); }
+h1 { font-size:15px; margin:0; display:flex; align-items:center; gap:8px; }
+h2 { font-size:12px; color:var(--text2); margin:14px 0 6px; font-weight:700; }
+.card { background:rgba(255,255,255,.6); border:.5px solid var(--line); border-radius:12px; padding:10px 12px; }
+@media (prefers-color-scheme: dark) { .card { background:rgba(255,255,255,.05); } }
+.row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:.5px solid var(--line); }
+.row:last-child { border-bottom:none; }
+.grow { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.muted { color:var(--text2); font-size:11.5px; }
+.dot { width:9px; height:9px; border-radius:9px; background:#bbb; flex:none; }
+.dot.connected { background:var(--green); box-shadow:0 0 0 3px rgba(47,182,124,.2); }
+.dot.offline, .dot.unauthorized { background:var(--red); }
+.dot.connecting { background:var(--amber); }
+button { font:inherit; border:.5px solid var(--line); background:#fff; color:var(--text); border-radius:8px; height:26px; padding:0 10px; cursor:pointer; font-weight:600; font-size:12px; }
+@media (prefers-color-scheme: dark) { button { background:rgba(255,255,255,.08); } }
+button.primary { background:var(--accent); color:#fff; border-color:transparent; }
+button.danger { color:var(--red); }
+button:disabled { opacity:.5; cursor:default; }
+input, textarea { font:inherit; width:100%; border:.5px solid var(--line); border-radius:8px; padding:6px 8px; background:rgba(255,255,255,.8); color:var(--text); }
+@media (prefers-color-scheme: dark) { input, textarea { background:rgba(255,255,255,.06); } }
+textarea { font-family: ui-monospace, Menlo, monospace; font-size:11.5px; min-height:64px; resize:vertical; }
+.msg { margin-top:8px; font-size:12px; }
+.msg.err { color:var(--red); } .msg.ok { color:var(--green); }
+.empty { color:var(--text2); text-align:center; padding:10px 0; font-size:12px; }
