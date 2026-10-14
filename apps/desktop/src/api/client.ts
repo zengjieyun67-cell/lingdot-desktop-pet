@@ -1,0 +1,120 @@
+/**
+ * Typed bridge to the Rust commands (src-tauri/src/commands.rs).
+ * Outside Tauri (plain `vite dev` in a browser) a localStorage mock is used so
+ * the UI can be developed and previewed without the native shell.
+ */
+import type { PetMood, Site, Task, TaskDetail, TaskStatus, NotificationRecord } from "@desktop-pet/shared";
+import type { InteractionKind, PersonaMemory } from "@desktop-pet/shared";
+import { localDay } from "@desktop-pet/shared";
+import type { AppSettings, Bootstrap, ChatMessage, ConnectionInfo, SiteInput, TaskFilter, TaskInput } from "./types";
+import { mockInvoke, mockListen } from "./mock";
+
+export function isTauri(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) return mockInvoke<T>(cmd, args);
+  const core = await import("@tauri-apps/api/core");
+  return core.invoke<T>(cmd, args);
+}
+
+export function convertFileSrc(path: string): string {
+  const w = window as unknown as { __TAURI_INTERNALS__?: { convertFileSrc?: (p: string, proto?: string) => string } };
+  return w.__TAURI_INTERNALS__?.convertFileSrc?.(path, "asset") ?? path;
+}
+
+export type Unlisten = () => void;
+
+export async function on<T>(event: string, cb: (payload: T) => void): Promise<Unlisten> {
+  if (!isTauri()) return mockListen<T>(event, cb);
+  const ev = await import("@tauri-apps/api/event");
+  return ev.listen<T>(event, (e) => cb(e.payload));
+}
+
+export async function startDragging(): Promise<void> {
+  if (!isTauri()) return;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().startDragging();
+}
+
+export async function hideCurrentWindow(): Promise<void> {
+  if (!isTauri()) return;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().hide();
+}
+
+export async function requestNotificationPermission(): Promise<"granted" | "denied" | "default" | "unsupported"> {
+  if (!isTauri()) return "unsupported";
+  try {
+    const n = await import("@tauri-apps/plugin-notification");
+    if (await n.isPermissionGranted()) return "granted";
+    return (await n.requestPermission()) as "granted" | "denied" | "default";
+  } catch {
+    return "unsupported";
+  }
+}
+
+export const api = {
+  bootstrap: () => invoke<Bootstrap>("get_bootstrap"),
+
+  listSites: () => invoke<Site[]>("list_sites"),
+  createSite: (input: SiteInput) => invoke<Site>("create_site", { input }),
+  updateSite: (id: string, input: SiteInput) => invoke<Site>("update_site", { id, input }),
+  deleteSite: (id: string) => invoke<void>("delete_site", { id }),
+  reorderSites: (ids: string[]) => invoke<Site[]>("reorder_sites", { ids }),
+  launchSite: (id: string) => invoke<void>("launch_site", { id }),
+  openUrl: (url: string) => invoke<void>("open_url", { url }),
+
+  listTasks: (filter?: TaskFilter) => invoke<Task[]>("list_tasks", { filter: filter ?? null }),
+  getTaskDetail: (id: string) => invoke<TaskDetail>("get_task_detail", { id }),
+  createTask: (input: TaskInput) => invoke<Task>("create_task", { input }),
+  updateTask: (id: string, input: TaskInput) => invoke<Task>("update_task", { id, input }),
+  setTaskStatus: (id: string, status: TaskStatus) => invoke<Task>("set_task_status", { id, status }),
+  deleteTask: (id: string) => invoke<void>("delete_task", { id }),
+  openTask: (id: string) => invoke<void>("open_task", { id }),
+
+  getSettings: () => invoke<AppSettings>("get_settings"),
+  updateSettings: (settings: AppSettings) => invoke<AppSettings>("update_settings", { settings }),
+  completeFirstRun: () => invoke<AppSettings>("complete_first_run"),
+
+  listNotifications: (limit = 50) => invoke<NotificationRecord[]>("list_notifications", { limit }),
+  markNotificationsRead: () => invoke<void>("mark_notifications_read"),
+  clearNotifications: () => invoke<void>("clear_notifications"),
+  openNotification: (id: string) => invoke<void>("open_notification", { id }),
+  testNotification: () => invoke<void>("test_notification"),
+
+  getConnectionInfo: () => invoke<ConnectionInfo>("get_connection_info"),
+  rotateToken: () => invoke<ConnectionInfo>("rotate_token"),
+  cleanupData: (olderThanDays: number, all: boolean) => invoke<number>("cleanup_data", { olderThanDays, all }),
+
+  togglePanel: () => invoke<void>("toggle_panel"),
+  showPanel: (tab?: string) => invoke<void>("show_panel", { tab: tab ?? null }),
+  hidePanel: () => invoke<void>("hide_panel"),
+  setPetVisible: (visible: boolean) => invoke<void>("set_pet_visible", { visible }),
+  resetPetPosition: () => invoke<void>("reset_pet_position"),
+  getPetMood: () => invoke<PetMood>("get_pet_mood"),
+  getLive2DInfo: () => invoke<{ modelsDir: string }>("get_live2d_info"),
+  quit: () => invoke<void>("quit_app"),
+
+  // 小喵: memory (local day/hour come from this webview's clock = user's timezone)
+  getPersonaMemory: () => invoke<PersonaMemory>("get_persona_memory"),
+  personaInteraction: (kind: InteractionKind, siteId?: string) => {
+    const d = new Date();
+    return invoke<PersonaMemory>("persona_interaction", { kind, siteId: siteId ?? null, localDay: localDay(d), localHour: d.getHours() });
+  },
+  setTodayMood: (mood: string) => invoke<void>("set_today_mood", { mood, localDay: localDay(new Date()) }),
+  resetPersonaMemory: () => invoke<PersonaMemory>("reset_persona_memory"),
+  getPersonaPromptPath: () => invoke<string>("get_persona_prompt_path"),
+  // chat (API key goes straight to the OS keychain; it is never returned to the UI)
+  setChatApiKey: (key: string) => invoke<void>("set_chat_api_key", { key }),
+  clearChatApiKey: () => invoke<void>("clear_chat_api_key"),
+  hasChatApiKey: () => invoke<boolean>("has_chat_api_key"),
+  chatSend: (history: ChatMessage[]) => invoke<string>("chat_send", { history }),
+};
+
+export function errorText(e: unknown): string {
+  if (typeof e === "string") return e;
+  if (e instanceof Error) return e.message;
+  return JSON.stringify(e);
+}
