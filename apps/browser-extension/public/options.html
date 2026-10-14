@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8" /><title>桌宠任务监控 · 设置</title><link rel="stylesheet" href="ui.css" />
+<style>body{max-width:620px;margin:0 auto;padding:28px 20px;} .card{margin-bottom:12px}</style></head>
+<body>
+  <h1><img src="icons/icon48.png" width="28" height="28" alt="" /> 桌宠任务监控 · 设置</h1>
+
+  <h2>1. 与桌宠配对</h2>
+  <div class="card">
+    <div class="row"><span id="dot" class="dot"></span><span id="state" class="grow">—</span><button id="test">测试连接</button></div>
+    <p class="muted">在桌宠面板 <b>设置 → 浏览器扩展</b> 点击「复制配对码」，粘贴到下面。配对码形如 <code>{"port":17321,"token":"…"}</code>。</p>
+    <textarea id="pairing" placeholder='{"port":17321,"token":"..."}'></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="save" class="primary">保存并连接</button>
+      <button id="unpair" class="danger">取消配对</button>
+    </div>
+    <div id="pairMsg" class="msg"></div>
+  </div>
+
+  <h2>2. 授权要监控的网站</h2>
+  <div class="card">
+    <p class="muted">扩展默认<b>不能</b>访问任何网站。只有你在这里授权的网站才会注入监控脚本。也可以在弹出窗口中一键授权桌宠里开启了「监控」的网站。</p>
+    <div style="display:flex;gap:8px"><input id="origin" placeholder="https://chatgpt.com" /><button id="grant" class="primary">授权</button></div>
+    <div id="grantMsg" class="msg"></div>
+    <div id="granted" style="margin-top:8px"></div>
+  </div>
+
+  <h2>隐私说明</h2>
+  <div class="card muted">
+    发送到桌宠（仅本机 127.0.0.1）的内容：页面标题、网址、若干布尔/数字信号（例如“停止按钮可见”）、简短的证据代码。<br />
+    不发送：页面正文、对话内容、表单输入、Cookie、密码、本地存储。
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
