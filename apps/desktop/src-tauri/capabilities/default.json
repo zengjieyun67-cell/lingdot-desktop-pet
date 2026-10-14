@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the pet and panel windows. App commands (commands.rs) are allowed by default; plugin access is limited to what the UI needs.",
+  "windows": ["pet", "panel"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "notification:default"
+  ]
+}
