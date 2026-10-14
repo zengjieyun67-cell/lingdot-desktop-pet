@@ -1,0 +1,154 @@
+{
+  "description": "Shared vectors executed by BOTH packages/shared (vitest) and pet-core (cargo test). Each step: event -> expected status/notify/runAction/runNo/ignored.",
+  "cases": [
+    {
+      "name": "happy path: pending -> running -> completed notifies once",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "e1", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 1, "notify": null } },
+        { "event": { "eventId": "e2", "kind": "completed" }, "expect": { "status": "completed", "runAction": "end", "runNo": 1, "notify": "completed" } }
+      ]
+    },
+    {
+      "name": "duplicate event id is ignored",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "e1", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 1, "notify": null } },
+        { "event": { "eventId": "e1", "kind": "running" }, "expect": { "status": "running", "runAction": "none", "runNo": 1, "notify": null, "ignored": true, "reason": "duplicate_event" } },
+        { "event": { "eventId": "e2", "kind": "completed" }, "expect": { "status": "completed", "runAction": "end", "runNo": 1, "notify": "completed" } },
+        { "event": { "eventId": "e2", "kind": "completed" }, "expect": { "status": "completed", "notify": null, "ignored": true, "reason": "duplicate_event" } }
+      ]
+    },
+    {
+      "name": "completed does not re-notify on repeated completed events",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "completed" }, "expect": { "status": "completed", "notify": "completed" } },
+        { "event": { "eventId": "c", "kind": "completed" }, "expect": { "status": "completed", "notify": null, "reason": "already_completed" } },
+        { "event": { "eventId": "d", "kind": "completed" }, "expect": { "status": "completed", "notify": null } }
+      ]
+    },
+    {
+      "name": "completed -> running starts a new run and can notify again",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "completed" }, "expect": { "status": "completed", "notify": "completed", "runNo": 1 } },
+        { "event": { "eventId": "c", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 2, "reason": "new_run_after_terminal" } },
+        { "event": { "eventId": "d", "kind": "completed" }, "expect": { "status": "completed", "runAction": "end", "runNo": 2, "notify": "completed" } }
+      ]
+    },
+    {
+      "name": "completed without an active run is ignored (no false completion)",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "completed" }, "expect": { "status": "pending", "notify": null, "ignored": true, "reason": "completed_without_active_run" } }
+      ]
+    },
+    {
+      "name": "no-signal unknown never changes status (element vanished)",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "unknown" }, "expect": { "status": "running", "notify": null, "reason": "no_signal" } },
+        { "event": { "eventId": "c", "kind": "unknown" }, "expect": { "status": "running", "notify": null } }
+      ]
+    },
+    {
+      "name": "timeout while running -> unknown, never completed/failed",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "t1", "kind": "timeout" }, "expect": { "status": "unknown", "notify": null, "runAction": "none", "runNo": 1, "reason": "observation_timeout" } },
+        { "event": { "eventId": "t2", "kind": "timeout" }, "expect": { "status": "unknown", "notify": null, "ignored": true } }
+      ]
+    },
+    {
+      "name": "unknown after timeout can still complete within the same run",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "t", "kind": "timeout" }, "expect": { "status": "unknown", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "completed" }, "expect": { "status": "completed", "runAction": "end", "runNo": 1, "notify": "completed" } }
+      ]
+    },
+    {
+      "name": "conflicting signals -> unknown",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "unknown", "conflict": true }, "expect": { "status": "unknown", "notify": null, "reason": "conflicting_signals" } },
+        { "event": { "eventId": "c", "kind": "running" }, "expect": { "status": "running", "runAction": "none", "runNo": 1, "reason": "run_resumed" } }
+      ]
+    },
+    {
+      "name": "conflict after completed keeps completed",
+      "initial": { "status": "completed", "activeRunNo": null, "runCount": 1 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "unknown", "conflict": true }, "expect": { "status": "completed", "ignored": true, "reason": "conflict_after_terminal" } }
+      ]
+    },
+    {
+      "name": "explicit error -> failed, notifies once, then new run on running",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "failed" }, "expect": { "status": "failed", "runAction": "end", "runNo": 1, "notify": "failed" } },
+        { "event": { "eventId": "c", "kind": "failed" }, "expect": { "status": "failed", "notify": null, "reason": "already_failed" } },
+        { "event": { "eventId": "d", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 2 } },
+        { "event": { "eventId": "e", "kind": "failed" }, "expect": { "status": "failed", "runNo": 2, "notify": "failed" } }
+      ]
+    },
+    {
+      "name": "error after completed is ignored",
+      "initial": { "status": "completed", "activeRunNo": null, "runCount": 1 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "failed" }, "expect": { "status": "completed", "notify": null, "ignored": true, "reason": "terminal_completed" } }
+      ]
+    },
+    {
+      "name": "login wall -> needs_attention, resume, complete",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "needs_attention" }, "expect": { "status": "needs_attention", "runAction": "none", "runNo": 1, "notify": "needs_attention" } },
+        { "event": { "eventId": "c", "kind": "needs_attention" }, "expect": { "status": "needs_attention", "notify": null } },
+        { "event": { "eventId": "d", "kind": "running" }, "expect": { "status": "running", "runAction": "none", "runNo": 1, "reason": "run_resumed" } },
+        { "event": { "eventId": "e", "kind": "needs_attention" }, "expect": { "status": "needs_attention", "notify": null } },
+        { "event": { "eventId": "f", "kind": "completed" }, "expect": { "status": "completed", "runAction": "end", "runNo": 1, "notify": "completed" } }
+      ]
+    },
+    {
+      "name": "needs_attention from pending (logged out before any run)",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "needs_attention" }, "expect": { "status": "needs_attention", "runNo": null, "notify": "needs_attention" } },
+        { "event": { "eventId": "b", "kind": "completed" }, "expect": { "status": "needs_attention", "ignored": true, "reason": "completed_without_active_run" } },
+        { "event": { "eventId": "c", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 1 } }
+      ]
+    },
+    {
+      "name": "needs_attention after completed is ignored",
+      "initial": { "status": "completed", "activeRunNo": null, "runCount": 1 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "needs_attention" }, "expect": { "status": "completed", "ignored": true, "notify": null } }
+      ]
+    },
+    {
+      "name": "timeout when not running is ignored",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "timeout" }, "expect": { "status": "pending", "ignored": true, "reason": "timeout_not_running" } }
+      ]
+    },
+    {
+      "name": "repeated running in same run is a no-op",
+      "initial": { "status": "pending", "activeRunNo": null, "runCount": 0 },
+      "steps": [
+        { "event": { "eventId": "a", "kind": "running" }, "expect": { "status": "running", "runAction": "start", "runNo": 1 } },
+        { "event": { "eventId": "b", "kind": "running" }, "expect": { "status": "running", "runAction": "none", "runNo": 1, "reason": "already_running" } }
+      ]
+    }
+  ]
+}
