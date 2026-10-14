@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8" /><title>桌宠任务监控</title><link rel="stylesheet" href="ui.css" />
+<style>body{width:330px;padding:12px;}</style></head>
+<body>
+  <h1><img src="icons/icon32.png" width="20" height="20" alt="" /> 桌宠任务监控</h1>
+  <div class="card" style="margin-top:10px">
+    <div class="row"><span id="dot" class="dot"></span><span id="state" class="grow">检查中…</span><button id="test">测试</button></div>
+    <div id="detail" class="muted"></div>
+  </div>
+
+  <h2>桌宠监控的网站</h2>
+  <div class="card" id="sites"><div class="empty">加载中…</div></div>
+
+  <h2>已授权的网站</h2>
+  <div class="card" id="granted"><div class="empty">—</div></div>
+
+  <div class="row" style="border:none;margin-top:8px">
+    <span class="muted grow">只会读取按钮/状态信号，不读取正文、Cookie 或密码。</span>
+    <button id="options">设置</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
