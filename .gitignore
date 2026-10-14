@@ -1,0 +1,8 @@
+node_modules/
+dist/
+target/
+*.log
+.DS_Store
+# Live2D Cubism Core & models are NOT redistributable — fetched by scripts/setup-live2d.sh
+apps/desktop/public/live2d/live2dcubismcore.min.js
+apps/desktop/public/live2d/models/
