@@ -33,7 +33,7 @@ jobs:
       - run: pnpm --filter @desktop-pet/desktop tauri build --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          name: DesktopPet-${{ matrix.target }}
+          name: lingdot-desktop-pet-${{ matrix.target }}
           path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
       - run: cd apps/browser-extension && zip -r ../../browser-extension.zip dist
         if: matrix.target == 'aarch64-apple-darwin'
@@ -50,7 +50,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: 小喵桌宠 build ${{ github.run_number }}
+          name: lingdot-desktop-pet build ${{ github.run_number }}
           files: |
             out/**/*.dmg
             out/**/*.zip
