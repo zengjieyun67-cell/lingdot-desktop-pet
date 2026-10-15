@@ -246,9 +246,52 @@ pub struct AppSettings {
     pub meal_reminders: bool,
     pub late_night_reminders: bool,
     pub chat_enabled: bool,
+    /// deepseek | custom (UI preset for the OpenAI-compatible chat)
+    pub chat_provider: String,
     pub chat_endpoint: String,
     pub chat_model: String,
+    /// Last position of the panel window after the user dragged it (physical px).
+    pub panel_position: Option<PetPosition>,
+    // ---- 语音 (free: macOS speech recognition + system voice)
+    pub voice_enabled: bool,
+    /// `say` voice name; empty = auto (婷婷 / 美佳 …).
+    pub voice_name: String,
+    /// Speech speed multiplier 0.5–2.0 (slightly fast = cuter).
+    pub voice_rate: f64,
+    /// Silence that ends an utterance in 实时对话 (ms).
+    pub voice_silence_ms: u32,
+    /// Read typed chat replies aloud too.
+    pub voice_read_replies: bool,
+    /// Prefer on-device recognition when the Mac supports it.
+    pub voice_on_device: bool,
+    /// Talking over 小喵 stops her (best effort).
+    pub voice_barge_in: bool,
+    // ---- 状态：听歌 / 打盹
+    pub music_detection: bool,
+    /// Count audio from browsers as "listening to music".
+    pub music_include_browsers: bool,
+    pub idle_states: bool,
+    // ---- 桌面模式 / 桌宠模式
+    /// pet | desktop
+    pub display_mode: String,
+    /// Desktop mode: sit above desktop icons so the scene is clickable.
+    pub desktop_interactive: bool,
 }
+
+/// Pet size range (multiplier of the 200×240 base window).
+pub const PET_SCALE_MIN: f64 = 0.6;
+pub const PET_SCALE_MAX: f64 = 2.5;
+
+/// Clamp a requested pet scale into the supported range (non-finite => 1.0).
+pub fn clamp_pet_scale(v: f64) -> f64 {
+    if !v.is_finite() {
+        return 1.0;
+    }
+    (v.clamp(PET_SCALE_MIN, PET_SCALE_MAX) * 100.0).round() / 100.0
+}
+
+pub const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
+pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-flash";
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -279,8 +322,22 @@ impl Default for AppSettings {
             meal_reminders: true,
             late_night_reminders: true,
             chat_enabled: false,
-            chat_endpoint: "https://api.openai.com/v1".into(),
-            chat_model: "gpt-4o-mini".into(),
+            chat_provider: "deepseek".into(),
+            chat_endpoint: DEEPSEEK_BASE_URL.into(),
+            chat_model: DEEPSEEK_DEFAULT_MODEL.into(),
+            panel_position: None,
+            voice_enabled: false,
+            voice_name: String::new(),
+            voice_rate: 1.1,
+            voice_silence_ms: 1200,
+            voice_read_replies: false,
+            voice_on_device: true,
+            voice_barge_in: true,
+            music_detection: true,
+            music_include_browsers: false,
+            idle_states: true,
+            display_mode: "pet".into(),
+            desktop_interactive: false,
         }
     }
 }
@@ -288,9 +345,7 @@ impl Default for AppSettings {
 impl AppSettings {
     /// Clamp/normalise values coming from the UI.
     pub fn sanitized(mut self) -> Self {
-        if !(0.5..=2.0).contains(&self.pet_scale) || !self.pet_scale.is_finite() {
-            self.pet_scale = 1.0;
-        }
+        self.pet_scale = clamp_pet_scale(self.pet_scale);
         if !["auto", "svg", "live2d"].contains(&self.renderer_mode.as_str()) {
             self.renderer_mode = "auto".into();
         }
@@ -326,6 +381,24 @@ impl AppSettings {
             .filter(|c| c.is_ascii_alphanumeric() || "._:/-@".contains(*c))
             .take(100)
             .collect();
+        if !["deepseek", "custom"].contains(&self.chat_provider.as_str())
+            || (self.chat_provider == "deepseek" && !crate::chat::is_deepseek_endpoint(&self.chat_endpoint))
+        {
+            // Older installs (or a hand-edited URL) keep their endpoint and show as 自定义.
+            self.chat_provider = "custom".into();
+        }
+        self.voice_name = self
+            .voice_name
+            .trim()
+            .chars()
+            .filter(|c| !c.is_control() && *c != '"' && *c != '\\')
+            .take(60)
+            .collect();
+        self.voice_rate = if self.voice_rate.is_finite() { (self.voice_rate.clamp(0.5, 2.0) * 100.0).round() / 100.0 } else { 1.1 };
+        self.voice_silence_ms = self.voice_silence_ms.clamp(600, 4000);
+        if !["pet", "desktop"].contains(&self.display_mode.as_str()) {
+            self.display_mode = "pet".into();
+        }
         self
     }
 }
@@ -350,4 +423,36 @@ pub fn now_ms() -> i64 {
 
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+
+    #[test]
+    fn pet_scale_is_clamped() {
+        assert_eq!(clamp_pet_scale(1.0), 1.0);
+        assert_eq!(clamp_pet_scale(0.1), PET_SCALE_MIN);
+        assert_eq!(clamp_pet_scale(99.0), PET_SCALE_MAX);
+        assert_eq!(clamp_pet_scale(f64::NAN), 1.0);
+        assert_eq!(clamp_pet_scale(f64::INFINITY), 1.0);
+        assert_eq!(clamp_pet_scale(1.234), 1.23);
+        let s = AppSettings { pet_scale: 2.2, ..Default::default() }.sanitized();
+        assert_eq!(s.pet_scale, 2.2);
+    }
+
+    #[test]
+    fn deepseek_is_the_default_preset() {
+        let s = AppSettings::default().sanitized();
+        assert_eq!(s.chat_provider, "deepseek");
+        assert_eq!(s.chat_endpoint, "https://api.deepseek.com");
+        assert_eq!(s.chat_model, "deepseek-flash");
+        // an older install that saved an OpenAI URL shows up as 自定义
+        let old: AppSettings = serde_json::from_str(r#"{"chatEndpoint":"https://api.openai.com/v1","chatModel":"gpt-4o-mini"}"#).unwrap();
+        let old = old.sanitized();
+        assert_eq!(old.chat_provider, "custom");
+        assert_eq!(old.chat_endpoint, "https://api.openai.com/v1");
+        let bad = AppSettings { chat_provider: "evil".into(), ..Default::default() }.sanitized();
+        assert_eq!(bad.chat_provider, "custom");
+    }
 }
