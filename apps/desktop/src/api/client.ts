@@ -6,7 +6,7 @@
 import type { PetMood, Site, Task, TaskDetail, TaskStatus, NotificationRecord } from "@desktop-pet/shared";
 import type { InteractionKind, PersonaMemory } from "@desktop-pet/shared";
 import { localDay } from "@desktop-pet/shared";
-import type { AppSettings, Bootstrap, ChatMessage, ConnectionInfo, SiteInput, TaskFilter, TaskInput } from "./types";
+import type { ActivitySnapshot, AppSettings, Bootstrap, ChatMessage, ConnectionInfo, DisplayMode, SiteInput, TaskFilter, TaskInput, VoiceInfo, VoiceStatus } from "./types";
 import { mockInvoke, mockListen } from "./mock";
 
 export function isTauri(): boolean {
@@ -93,6 +93,9 @@ export const api = {
   hidePanel: () => invoke<void>("hide_panel"),
   setPetVisible: (visible: boolean) => invoke<void>("set_pet_visible", { visible }),
   resetPetPosition: () => invoke<void>("reset_pet_position"),
+  /** Resize the pet window (Rust clamps to 60%–250% and persists it). */
+  setPetScale: (scale: number) => invoke<number>("set_pet_scale", { scale }),
+  resetPanelPosition: () => invoke<void>("reset_panel_position"),
   getPetMood: () => invoke<PetMood>("get_pet_mood"),
   getLive2DInfo: () => invoke<{ modelsDir: string }>("get_live2d_info"),
   quit: () => invoke<void>("quit_app"),
@@ -111,6 +114,22 @@ export const api = {
   clearChatApiKey: () => invoke<void>("clear_chat_api_key"),
   hasChatApiKey: () => invoke<boolean>("has_chat_api_key"),
   chatSend: (history: ChatMessage[]) => invoke<string>("chat_send", { history }),
+  /** 测试连接 with the URL/model currently in the form and the key from the keychain. */
+  chatTest: (endpoint: string, model: string) => invoke<string>("chat_test", { endpoint, model }),
+
+  // phase 2: voice (macOS native STT + `say`; see lib/voice.ts for the browser fallback)
+  voiceStatus: () => invoke<VoiceStatus>("voice_status"),
+  voicePttStart: (history?: ChatMessage[]) => invoke<VoiceStatus>("voice_ptt_start", history ? { history } : {}),
+  voicePttStop: () => invoke<VoiceStatus>("voice_ptt_stop"),
+  voiceSetLive: (enabled: boolean, history?: ChatMessage[]) =>
+    invoke<VoiceStatus>("voice_set_live", history ? { enabled, history } : { enabled }),
+  voiceStop: () => invoke<VoiceStatus>("voice_stop"),
+  voiceStopSpeaking: () => invoke<VoiceStatus>("voice_stop_speaking"),
+  voiceSpeak: (text: string) => invoke<null>("voice_speak", { text }),
+  voiceListVoices: () => invoke<VoiceInfo[]>("voice_list_voices"),
+  // phase 2: activity + display mode
+  getActivity: () => invoke<ActivitySnapshot>("get_activity"),
+  setDisplayMode: (mode: DisplayMode) => invoke<AppSettings>("set_display_mode", { mode }),
 };
 
 export function errorText(e: unknown): string {
