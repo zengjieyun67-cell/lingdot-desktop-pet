@@ -3,7 +3,8 @@ import { TASK_STATUSES, type Site, type Task, type TaskDetail, type TaskStatus }
 import { api } from "../api/client";
 import type { TaskInput } from "../api/types";
 import { usePanel } from "./PanelApp";
-import { Button, Empty, Field, inputClass, selectClass, Spinner, StatusBadge } from "./ui";
+import { Button, Empty, Field, inputClass, More, selectClass, Spinner, StatusBadge } from "./ui";
+import { ExtensionGuide } from "./ExtensionGuide";
 import {
   confidenceLabel,
   DETECTION_LABEL,
@@ -27,6 +28,7 @@ export function TasksView() {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -47,32 +49,43 @@ export function TasksView() {
 
   return (
     <div>
-      <div className={s.toolbar}>
-        <select className={selectClass} value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)} aria-label="按网站筛选">
-          <option value="">全部网站</option>
-          {sites.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={selectClass}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "")}
-          aria-label="按状态筛选"
-        >
-          <option value="">全部状态</option>
-          {TASK_STATUSES.map((st) => (
-            <option key={st} value={st}>
-              {statusLabel(st)}
-            </option>
-          ))}
-        </select>
-        <Button variant="primary" onClick={() => setCreating((v) => !v)}>
-          {creating ? "取消" : "＋ 新建"}
-        </Button>
+      <ExtensionGuide />
+      <div className={s.sectionTitle}>
+        <span>最近的任务</span>
+        <span style={{ display: "flex", gap: 6 }}>
+          <Button small variant="ghost" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters}>
+            {siteFilter || statusFilter ? "筛选 •" : "筛选"}
+          </Button>
+          <Button small variant="primary" onClick={() => setCreating((v) => !v)}>
+            {creating ? "取消" : "＋ 新建"}
+          </Button>
+        </span>
       </div>
+      {showFilters && (
+        <div className={s.toolbar}>
+          <select className={selectClass} value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)} aria-label="按网站筛选">
+            <option value="">全部网站</option>
+            {sites.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={selectClass}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "")}
+            aria-label="按状态筛选"
+          >
+            <option value="">全部状态</option>
+            {TASK_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {statusLabel(st)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {creating && (
         <TaskForm
@@ -89,8 +102,11 @@ export function TasksView() {
       {tasks === null ? (
         <Spinner />
       ) : tasks.length === 0 ? (
-        <Empty icon="🧶" title={siteFilter || statusFilter ? "没有符合条件的任务" : "还没有任务"}>
-          <span>在已授权的网站上开始一个 AI 任务，桌宠会自动记录；也可以点「新建」手动添加。</span>
+        <Empty
+          title={siteFilter || statusFilter ? "没有符合条件的任务" : "还没有任务"}
+          quip={siteFilter || statusFilter ? "哼，换个条件再找找嘛。" : "今天这么闲？本猫可没在等你哦。"}
+        >
+          <span>在授权过的网站上开始 AI 任务，小喵会自动记下来</span>
         </Empty>
       ) : (
         <div className={s.list}>
@@ -103,7 +119,6 @@ export function TasksView() {
                   <div className={s.cardTitle}>{t.title}</div>
                   <div className={s.cardMeta}>
                     <span>{site?.name ?? "未关联网站"}</span>·<span>{relTime(t.updatedAt)}</span>
-                    {t.runCount > 1 && <span>· 第 {t.runCount} 轮</span>}
                   </div>
                 </div>
                 <StatusBadge status={t.status} />
@@ -211,7 +226,7 @@ function TaskDetailView({ id, onBack }: { id: string; onBack: () => void }) {
         <Button small className={s.back} onClick={onBack}>
           ‹ 返回
         </Button>
-        <Empty icon="🫥" title="任务不存在或已被删除" />
+        <Empty title="任务不存在或已被删除" quip="被谁偷偷删掉了吧…才不是本猫干的！" />
       </div>
     );
   }
@@ -259,23 +274,33 @@ function TaskDetailView({ id, onBack }: { id: string; onBack: () => void }) {
           <dl className={s.kv}>
             <dt>网站</dt>
             <dd>{site?.name ?? "未关联"}</dd>
-            <dt>链接</dt>
-            <dd>{t.url || "—"}</dd>
-            <dt>来源</dt>
-            <dd>{DETECTION_LABEL[t.detectionSource] ?? t.detectionSource}</dd>
-            <dt>判定可信度</dt>
-            <dd title="状态判定的把握程度，不代表任务进度">{confidenceLabel(t.confidence)}（不代表进度）</dd>
-            <dt>创建</dt>
-            <dd>{fullTime(t.createdAt)}</dd>
-            <dt>开始</dt>
-            <dd>{fullTime(t.startedAt)}</dd>
-            <dt>完成</dt>
-            <dd>{fullTime(t.completedAt)}</dd>
             <dt>最近观察</dt>
             <dd>{relTime(t.lastObservedAt)}</dd>
-            <dt>已通知</dt>
-            <dd>{t.notificationSent ? "是" : "否"}</dd>
           </dl>
+          <More label="更多详情">
+            <dl className={s.kv}>
+              <dt>链接</dt>
+              <dd>{t.url || "—"}</dd>
+              <dt>来源</dt>
+              <dd>{DETECTION_LABEL[t.detectionSource] ?? t.detectionSource}</dd>
+              <dt>判定可信度</dt>
+              <dd title="状态判定的把握程度，不代表任务进度">{confidenceLabel(t.confidence)}（不代表进度）</dd>
+              <dt>创建</dt>
+              <dd>{fullTime(t.createdAt)}</dd>
+              <dt>开始</dt>
+              <dd>{fullTime(t.startedAt)}</dd>
+              <dt>完成</dt>
+              <dd>{fullTime(t.completedAt)}</dd>
+              <dt>已通知</dt>
+              <dd>{t.notificationSent ? "是" : "否"}</dd>
+              {t.runCount > 1 && (
+                <>
+                  <dt>轮次</dt>
+                  <dd>第 {t.runCount} 轮</dd>
+                </>
+              )}
+            </dl>
+          </More>
           <div className={s.actions}>
             <Button variant="primary" small disabled={!t.url} onClick={() => act(() => api.openTask(t.id))}>
               打开页面
@@ -315,47 +340,49 @@ function TaskDetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </>
       )}
 
-      {detail.runs.length > 0 && (
-        <>
-          <div className={s.sectionTitle}>执行轮次</div>
-          <div className={s.list} style={{ marginBottom: 10 }}>
-            {detail.runs.map((r) => (
-              <div key={r.id} className={s.card} style={{ cursor: "default" }}>
-                <div className={s.cardMain}>
-                  <div className={s.cardTitle}>第 {r.runNo} 轮</div>
-                  <div className={s.cardMeta}>
-                    {fullTime(r.startedAt)} → {r.endedAt ? fullTime(r.endedAt) : "进行中"}
+      <More label={`执行轮次与状态历史（${detail.events.length}）`}>
+        {detail.runs.length > 0 && (
+          <>
+            <div className={s.sectionTitle}>执行轮次</div>
+            <div className={s.list} style={{ marginBottom: 10 }}>
+              {detail.runs.map((r) => (
+                <div key={r.id} className={s.card} style={{ cursor: "default" }}>
+                  <div className={s.cardMain}>
+                    <div className={s.cardTitle}>第 {r.runNo} 轮</div>
+                    <div className={s.cardMeta}>
+                      {fullTime(r.startedAt)} → {r.endedAt ? fullTime(r.endedAt) : "进行中"}
+                    </div>
                   </div>
+                  <StatusBadge status={r.status} />
                 </div>
-                <StatusBadge status={r.status} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+              ))}
+            </div>
+          </>
+        )}
 
-      <div className={s.sectionTitle}>状态历史</div>
-      {detail.events.length === 0 ? (
-        <Empty icon="📜" title="暂无历史" />
-      ) : (
-        <ul className={s.timeline}>
-          {detail.events.map((ev) => (
-            <li key={ev.id}>
-              <div>
-                <b>{EVENT_KIND_LABEL[ev.kind] ?? ev.kind}</b>
-                {ev.fromStatus && ev.toStatus && ev.fromStatus !== ev.toStatus && (
-                  <span>
-                    {" "}
-                    · {statusLabel(ev.fromStatus)} → {statusLabel(ev.toStatus)}
-                  </span>
-                )}
-                <span style={{ color: "var(--text-3)" }}> · {relTime(ev.createdAt)}</span>
-              </div>
-              {ev.evidence.length > 0 && <div className={s.evidence}>{ev.evidence.join(" · ")}</div>}
-            </li>
-          ))}
-        </ul>
-      )}
+        <div className={s.sectionTitle}>状态历史</div>
+        {detail.events.length === 0 ? (
+          <div className={s.rowDesc}>暂无历史</div>
+        ) : (
+          <ul className={s.timeline}>
+            {detail.events.map((ev) => (
+              <li key={ev.id}>
+                <div>
+                  <b>{EVENT_KIND_LABEL[ev.kind] ?? ev.kind}</b>
+                  {ev.fromStatus && ev.toStatus && ev.fromStatus !== ev.toStatus && (
+                    <span>
+                      {" "}
+                      · {statusLabel(ev.fromStatus)} → {statusLabel(ev.toStatus)}
+                    </span>
+                  )}
+                  <span style={{ color: "var(--text-3)" }}> · {relTime(ev.createdAt)}</span>
+                </div>
+                {ev.evidence.length > 0 && <div className={s.evidence}>{ev.evidence.join(" · ")}</div>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </More>
     </div>
   );
 }
