@@ -283,6 +283,54 @@
 
 /* ---------------- animations disabled ---------------- */
 
+
+/* ---------------- phase 2: ambient states ---------------- */
+.headphones, .notes, .mouthTalk, .eyesClosed { opacity: 0; transition: opacity 0.25s ease; }
+
+/* listening to music: headphones, head bob, floating notes */
+.stMusic .headphones { opacity: 1; }
+.stMusic .notes { opacity: 1; }
+.stMusic .head { animation: musicBob 0.9s ease-in-out infinite; }
+.stMusic .tail { animation-duration: 0.9s; }
+.stMusic .note1 { animation: noteFloat 2.4s ease-in-out infinite; }
+.stMusic .note2 { animation: noteFloat 2.4s ease-in-out infinite 0.8s; }
+.stMusic .note3 { animation: noteFloat 2.4s ease-in-out infinite 1.6s; }
+@keyframes musicBob {
+  0%, 100% { transform: rotate(-3deg) translateY(0); }
+  50% { transform: rotate(3deg) translateY(1.5px); }
+}
+@keyframes noteFloat {
+  0% { transform: translateY(6px); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(-18px); opacity: 0; }
+}
+
+/* napping: eyes fully closed, slow breathing, zZ */
+.stNap .eyes, .stNap .eyesSleepy, .stNap .eyesHappy { opacity: 0; }
+.stNap .eyesClosed { opacity: 1; }
+.stNap .markZzz { opacity: 1; animation: zzz 3s ease-in-out infinite; }
+.stNap .breath { animation-duration: 6s; }
+.stNap .headFollow { transform: rotate(-6deg) translateY(3px); }
+.stNap .earL { animation: none; transform: rotate(-14deg) translate(-1px, 6px); }
+.stNap .earR { animation: none; transform: rotate(14deg) translate(1px, 6px); }
+
+/* stretching: paws up, body lengthens */
+.stStretch .pawL { animation: stretchL 2s ease-in-out infinite; }
+.stStretch .pawR { animation: stretchR 2s ease-in-out infinite; }
+.stStretch .breath { animation: stretchBody 2s ease-in-out infinite; }
+.stStretch .eyes { opacity: 0; }
+.stStretch .eyesHappy { opacity: 1; }
+@keyframes stretchL { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-12px, -92px) rotate(-20deg); } }
+@keyframes stretchR { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(12px, -92px) rotate(20deg); } }
+@keyframes stretchBody { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(0.98, 1.04); } }
+
+/* voice: listening to the user (ears perk) and speaking (mouth moves) */
+.voiceListen .earL { animation: none; transform: rotate(-6deg) translateY(-4px) scale(1.06); }
+.voiceListen .earR { animation: none; transform: rotate(6deg) translateY(-4px) scale(1.06); }
+.voiceSpeak .mouthIdle, .voiceSpeak .mouthHappy, .voiceSpeak .mouthPout, .voiceSpeak .mouthShy { opacity: 0 !important; }
+.voiceSpeak .mouthTalk { opacity: 1; transform-origin: 100px 128px; animation: talk 0.22s ease-in-out infinite alternate; }
+@keyframes talk { from { transform: scaleY(0.35); } to { transform: scaleY(1.1); } }
+
 .still *,
 .still *::before,
 .still *::after {
