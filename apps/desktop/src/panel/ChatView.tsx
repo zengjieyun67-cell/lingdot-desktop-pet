@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../api/client";
+import { useVoice, voice, voicePhaseLabel } from "../lib/voice";
 import type { ChatMessage } from "../api/types";
 import { usePanel } from "./PanelApp";
+import { requestSettingsSection } from "./SettingsView";
 import { Button, Empty, inputClass } from "./ui";
 import s from "./Panel.module.css";
 
@@ -22,6 +24,14 @@ export function ChatView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  // Voice turns (from Rust or the browser fallback) land in the same chat log.
+  const { status: vs, pttStart, pttStop, setLive, stopSpeaking } = useVoice((t) => {
+    setHistory((h) => [...h, t]);
+    if (t.role === "assistant") void api.personaInteraction("chat").catch(() => undefined);
+  });
+  const holding = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(STORE, JSON.stringify(history.slice(-KEEP)));
@@ -30,10 +40,13 @@ export function ChatView() {
 
   if (!settings.chatEnabled) {
     return (
-      <Empty icon="💭" title="聊天未开启">
-        <span>聊天需要你自己的 OpenAI 兼容接口和 API Key。不开启也没关系，{settings.petName}的离线台词会照常出现。</span>
-        <Button small variant="primary" onClick={() => setTab("settings")}>
-          前往设置
+      <Empty title="聊天还没开启" quip="想和本猫聊天？先去设置里填个 Key 再说。">
+        <span>推荐用 DeepSeek，粘贴 API Key 就能用；不开启也没关系，{settings.petName}的离线台词照常出现</span>
+        <Button small variant="primary" onClick={() => {
+            requestSettingsSection("chat");
+            setTab("settings");
+          }}>
+          去设置
         </Button>
       </Empty>
     );
@@ -50,6 +63,7 @@ export function ChatView() {
     try {
       const reply = await api.chatSend(next);
       setHistory((h) => [...h, { role: "assistant", content: reply }]);
+      if (settings.voiceEnabled && settings.voiceReadReplies) void voice.speak(reply).catch(() => undefined);
       void api.personaInteraction("chat").catch(() => undefined);
     } catch (e) {
       setError(errorText(e));
@@ -59,9 +73,9 @@ export function ChatView() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className={s.chatWrap}>
       <div className={s.chatLog}>
-        {history.length === 0 && <div className={s.rowDesc} style={{ textAlign: "center", padding: 16 }}>和{settings.petName}说点什么吧。</div>}
+        {history.length === 0 && <Empty title={`和${settings.petName}说点什么吧`} quip="…本猫只是刚好有空而已。" />}
         {history.map((m, i) => (
           <div key={i} className={m.role === "user" ? s.msgUser : s.msgPet}>
             {m.content}
@@ -71,7 +85,69 @@ export function ChatView() {
         <div ref={endRef} />
       </div>
       {error && <div style={{ color: "var(--red)", fontSize: 12, margin: "6px 0" }}>{error}</div>}
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      {settings.voiceEnabled ? (
+        <div className={`${s.voiceBar} ${vs.mode !== "off" ? s.voiceBarOn : ""}`}>
+          <button
+            type="button"
+            className={`${s.micBtn} ${vs.phase === "listening" ? s.micBtnOn : ""}`}
+            title="按住说话，松开发送"
+            disabled={busy || vs.mode === "live"}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              holding.current = true;
+              void pttStart(historyRef.current.slice(-20));
+            }}
+            onPointerUp={() => {
+              if (!holding.current) return;
+              holding.current = false;
+              void pttStop();
+            }}
+            onPointerCancel={() => {
+              holding.current = false;
+              void pttStop();
+            }}
+          >
+            🎙️
+          </button>
+          <div className={s.voiceText}>
+            {vs.error ? (
+              <span style={{ color: "var(--red)" }}>{vs.error}</span>
+            ) : vs.phase === "listening" && vs.transcript ? (
+              <span>“{vs.transcript}”</span>
+            ) : (
+              <span>{voicePhaseLabel(vs) ?? "按住麦克风说话，或打开实时对话"}</span>
+            )}
+          </div>
+          {(vs.phase === "speaking" || !!vs.speaking) && (
+            <Button small onClick={() => void stopSpeaking()} title="让她别说了">
+              ⏹
+            </Button>
+          )}
+          <label className={s.liveToggle} title="一直听着，你说完她就回答">
+            <input
+              type="checkbox"
+              checked={vs.mode === "live"}
+              onChange={(e) => void setLive(e.target.checked, historyRef.current.slice(-20))}
+            />
+            <span>实时对话</span>
+          </label>
+        </div>
+      ) : (
+        <div className={s.voiceHint}>
+          想用嘴巴说？
+          <button
+            type="button"
+            className={s.linkBtn}
+            onClick={() => {
+              requestSettingsSection("voice");
+              setTab("settings");
+            }}
+          >
+            开启语音
+          </button>
+        </div>
+      )}
+      <div className={s.chatBar}>
         <input
           className={inputClass}
           style={{ flex: 1 }}
