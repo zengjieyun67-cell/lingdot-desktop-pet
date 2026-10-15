@@ -11,7 +11,8 @@
  *   normal  (20..59)            — 典型傲娇
  *   clingy  (>= 60)             — 嘴硬但明显依赖、黏人
  * Placeholders: {name} (pet name), {user} (how she addresses the user, default 主人),
- *               {task} (task title), {site} (site name).
+ *               {task} (task title), {site} (site name),
+ *               {song} (current song title), {app} (music app name).
  */
 import type { Emotion, PersonaTrigger } from "./emotion";
 
@@ -127,6 +128,27 @@ export const LINES: LineTable = {
       clingy: ["好多任务！本猫会全部帮你看好的，你别太累。"],
     },
   },
+  music_start: {
+    any: {
+      distant: ["在听「{song}」啊。……本猫就安静待着。", "{app} 开始放歌了。本猫不打扰你。", "哼，品味……还算可以吧。"],
+      normal: ["哼，在听「{song}」？本猫才没有跟着晃脑袋。", "{app} 响起来了……勉强陪你听一首好了。", "这首「{song}」……还行吧，不要误会哦，本猫只是刚好醒着。"],
+      clingy: ["「{song}」！本猫也喜欢这首……才、才不是因为你在听。", "一起听歌吧～哼，本猫的耳机可是专门准备的。", "放歌啦！本猫要坐在你旁边听，不许赶本猫走。"],
+    },
+  },
+  napping: {
+    any: {
+      distant: ["……没人理，本猫睡一会儿。", "安静下来了。本猫先打个盹。"],
+      normal: ["哼，你不在，本猫就睡一会儿……只是一会儿。", "好无聊……本猫才不是在等你，只是困了。", "切，走开也不说一声。本猫打盹去了。"],
+      clingy: ["你去哪啦……本猫先睡一下，回来要叫醒本猫哦。", "等你等得都困了……zZ……才没有在等！"],
+    },
+  },
+  woke: {
+    any: {
+      distant: ["……醒了。你回来了。", "嗯？有动静。本猫醒了。"],
+      normal: ["唔……{user}回来了？本猫刚才才没有睡着。", "哼，吵醒本猫了。……算了，看在你回来的份上。", "本猫只是闭目养神，不要误会哦。"],
+      clingy: ["{user}！……咳，本猫刚好睡醒而已。", "你回来啦～本猫做梦都梦到……什么都没梦到！"],
+    },
+  },
 };
 
 /** Lines whose text must never appear (persona must not attack the user). */
@@ -138,6 +160,10 @@ export interface LineContext {
   user?: string;
   task?: string;
   site?: string;
+  /** current song title (music) */
+  song?: string;
+  /** music app name, e.g. QQ音乐 */
+  app?: string;
 }
 
 export function fillLine(line: string, ctx: LineContext): string {
@@ -145,7 +171,9 @@ export function fillLine(line: string, ctx: LineContext): string {
     .replaceAll("{name}", ctx.name || "小喵")
     .replaceAll("{user}", ctx.user || "主人")
     .replaceAll("{task}", ctx.task ? truncate(ctx.task, 18) : "任务")
-    .replaceAll("{site}", ctx.site || "网页");
+    .replaceAll("{site}", ctx.site || "网页")
+    .replaceAll("{song}", ctx.song ? truncate(ctx.song, 16) : "这首歌")
+    .replaceAll("{app}", ctx.app || "音乐");
 }
 
 function truncate(s: string, n: number): string {
