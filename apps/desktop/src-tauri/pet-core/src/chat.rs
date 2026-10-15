@@ -34,6 +34,40 @@ pub fn validate_endpoint(endpoint: &str) -> Result<String, String> {
     Ok(if base.ends_with("/chat/completions") { base } else { format!("{base}/chat/completions") })
 }
 
+/// True when the endpoint (base URL or full URL) points at DeepSeek's official API.
+pub fn is_deepseek_endpoint(endpoint: &str) -> bool {
+    url::Url::parse(endpoint.trim())
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.eq_ignore_ascii_case("api.deepseek.com")))
+        .unwrap_or(false)
+}
+
+/// Provider-specific request tweaks. DeepSeek enables thinking mode by default;
+/// a desktop pet wants short, snappy replies, so we send non-thinking mode
+/// (`"thinking": {"type": "disabled"}`, see api-docs.deepseek.com/guides/thinking_mode).
+/// Only applied for api.deepseek.com — other OpenAI-compatible servers may reject unknown fields.
+pub fn apply_provider_options(mut body: Value, endpoint: &str) -> Value {
+    if is_deepseek_endpoint(endpoint) {
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert("thinking".into(), json!({ "type": "disabled" }));
+        }
+    }
+    body
+}
+
+/// Minimal request used by the 「测试连接」 button.
+pub fn build_test_request(model: &str) -> Result<Value, String> {
+    if model.trim().is_empty() {
+        return Err("请先填写模型名称".into());
+    }
+    Ok(json!({
+        "model": model.trim(),
+        "messages": [{ "role": "user", "content": "ping，请只回复“喵”" }],
+        "max_tokens": 8,
+        "stream": false
+    }))
+}
+
 /// Compact memory summary appended to the system prompt (numbers + habits only).
 pub fn memory_summary(m: &PersonaMemory, site_names: &dyn Fn(&str) -> Option<String>) -> String {
     let sites: Vec<String> = top_sites(m, 3)
@@ -128,6 +162,37 @@ mod tests {
         assert!(validate_endpoint("https://user:pw@x.com/v1").is_err());
         assert!(validate_endpoint("file:///etc/passwd").is_err());
         assert!(validate_endpoint("nonsense").is_err());
+    }
+
+    #[test]
+    fn deepseek_url_building() {
+        // DeepSeek documents base_url = https://api.deepseek.com (the /v1 form also works)
+        assert_eq!(validate_endpoint("https://api.deepseek.com").unwrap(), "https://api.deepseek.com/chat/completions");
+        assert_eq!(validate_endpoint("https://api.deepseek.com/").unwrap(), "https://api.deepseek.com/chat/completions");
+        assert_eq!(validate_endpoint(" https://api.deepseek.com/v1 ").unwrap(), "https://api.deepseek.com/v1/chat/completions");
+        assert_eq!(
+            validate_endpoint("https://api.deepseek.com/chat/completions").unwrap(),
+            "https://api.deepseek.com/chat/completions"
+        );
+        assert!(is_deepseek_endpoint("https://api.deepseek.com"));
+        assert!(is_deepseek_endpoint("https://API.DeepSeek.com/v1/chat/completions"));
+        assert!(!is_deepseek_endpoint("https://api.openai.com/v1"));
+        assert!(!is_deepseek_endpoint("https://api.deepseek.com.evil.io"));
+        assert!(!is_deepseek_endpoint("nonsense"));
+    }
+
+    #[test]
+    fn deepseek_thinking_disabled_only_for_deepseek() {
+        let hist = [ChatMessage { role: "user".into(), content: "hi".into() }];
+        let body = build_request("deepseek-flash", "SYS", &hist).unwrap();
+        let ds = apply_provider_options(body.clone(), "https://api.deepseek.com/chat/completions");
+        assert_eq!(ds["thinking"], json!({ "type": "disabled" }));
+        assert_eq!(ds["model"], "deepseek-flash");
+        let other = apply_provider_options(body, "https://api.openai.com/v1/chat/completions");
+        assert!(other.get("thinking").is_none());
+        let t = apply_provider_options(build_test_request("deepseek-v4-pro").unwrap(), "https://api.deepseek.com");
+        assert_eq!(t["thinking"]["type"], "disabled");
+        assert!(build_test_request(" ").is_err());
     }
 
     #[test]
