@@ -38,7 +38,7 @@ export function NotificationsView() {
       <div className={s.sectionTitle}>
         <span>最近通知</span>
         <span style={{ display: "flex", gap: 4 }}>
-          <Button small onClick={() => api.testNotification().then(load).catch(reportError)}>
+          <Button small variant="ghost" onClick={() => api.testNotification().then(load).catch(reportError)}>
             测试通知
           </Button>
           <Button
@@ -61,8 +61,8 @@ export function NotificationsView() {
       {list === null ? (
         <Spinner />
       ) : list.length === 0 ? (
-        <Empty icon="🔔" title="暂无通知">
-          <span>任务完成、失败、需要处理或扩展断开时会出现在这里。</span>
+        <Empty title="暂无通知" quip="安安静静的，本猫也乐得清闲～">
+          <span>任务完成、失败或需要你处理时会出现在这里</span>
         </Empty>
       ) : (
         <div className={s.list}>
@@ -71,7 +71,7 @@ export function NotificationsView() {
               <span className={s.siteIcon}>{KIND_ICON[n.kind] ?? "🔔"}</span>
               <div className={s.cardMain}>
                 <div className={s.cardTitle}>{n.title}</div>
-                <div className={s.cardMeta} style={{ whiteSpace: "normal" }}>
+                <div className={s.cardBody} title={n.body}>
                   {n.body}
                 </div>
                 <div className={s.cardMeta}>{relTime(n.createdAt)}</div>
