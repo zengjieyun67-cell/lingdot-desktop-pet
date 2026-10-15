@@ -1,5 +1,5 @@
 #!/bin/bash
-# 双击运行：自动准备环境、构建小喵桌宠，并把 .dmg 和浏览器扩展放到桌面。
+# 双击运行：自动准备环境、构建 lingdot-desktop-pet（小喵桌宠），并把 .dmg 和浏览器扩展放到桌面。
 set -e
 cd "$(dirname "$0")"
 say() { printf "\n\033[1;35m[小喵]\033[0m %s\n" "$1"; }
@@ -50,11 +50,11 @@ pnpm --filter @desktop-pet/desktop tauri build
 
 # 6. 放到桌面
 DMG=$(ls apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg | head -1)
-OUT="$HOME/Desktop/小喵桌宠"
+OUT="$HOME/Desktop/lingdot-desktop-pet"
 mkdir -p "$OUT"
 cp "$DMG" "$OUT/"
 rm -rf "$OUT/浏览器扩展"; cp -R apps/browser-extension/dist "$OUT/浏览器扩展"
-say "好了！桌面上的「小喵桌宠」文件夹里有安装包和浏览器扩展。才、才不是特意为你做的呢……喵"
+say "好了！桌面上的「lingdot-desktop-pet」文件夹里有安装包和浏览器扩展。才、才不是特意为你做的呢……喵"
 open "$OUT"
 open "$OUT/$(basename "$DMG")"
 read -n 1 -s -r -p "按任意键关闭……"
