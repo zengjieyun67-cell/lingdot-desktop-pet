@@ -25,6 +25,9 @@ export const PERSONA_TRIGGERS = [
   "late_night", // 23:00–05:00 rest reminder
   "meal_time",
   "many_tasks",
+  "music_start", // user started playing music (phase 2)
+  "napping", // idle long enough that 小喵 dozes off
+  "woke", // user came back from idle while she was napping
 ] as const;
 export type PersonaTrigger = (typeof PERSONA_TRIGGERS)[number];
 
@@ -130,6 +133,12 @@ export function nextEmotion(prev: EmotionState, input: EmotionInput, ctx: Emotio
       return s.emotion === "angry" ? s : set(s, "neutral", now);
     case "many_tasks":
       return s.emotion === "sleepy" ? s : set(s, "neutral", now);
+    case "music_start":
+      return s.emotion === "angry" && now - s.since < 10_000 ? s : set(s, "happy", now);
+    case "napping":
+      return set(s, "sleepy", now);
+    case "woke":
+      return set(s, "neutral", now);
   }
 }
 
