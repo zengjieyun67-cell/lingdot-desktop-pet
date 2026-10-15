@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { SiteInput } from "../api/types";
 import { usePanel } from "./PanelApp";
 import { SiteIcon } from "./TasksView";
+import { ExtensionGuide } from "./ExtensionGuide";
 import { Button, Empty, Field, inputClass, selectClass, Toggle } from "./ui";
 import { ADAPTER_LABEL, isImageIcon } from "./format";
 import s from "./Panel.module.css";
@@ -66,6 +67,7 @@ export function SitesView() {
 
   return (
     <div>
+      <ExtensionGuide />
       <div className={s.sectionTitle}>
         <span>快速打开</span>
         <Button small variant="ghost" onClick={() => setManage((v) => !v)}>
@@ -74,7 +76,7 @@ export function SitesView() {
       </div>
 
       {enabled.length === 0 ? (
-        <Empty icon="🧭" title="还没有启用的网站">
+        <Empty title="还没有启用的网站" quip="一个常去的地方都没有？真拿你没办法。">
           <Button small variant="primary" onClick={() => { setManage(true); setEditing("new"); }}>
             添加网站
           </Button>
