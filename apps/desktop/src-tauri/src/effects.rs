@@ -76,5 +76,6 @@ pub fn refresh_mood(app: &AppHandle) {
         *last = mood;
         let _ = app.emit_to("pet", "pet-mood", mood);
         let _ = app.emit_to("panel", "pet-mood", mood);
+        let _ = app.emit_to("desktop", "pet-mood", mood);
     }
 }
