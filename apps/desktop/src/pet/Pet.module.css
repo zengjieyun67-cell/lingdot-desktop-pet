@@ -88,3 +88,59 @@
 }
 .bubbleSay + .bubbleBody { margin-top: 3px; font-size: 10.5px; }
 .bubbleLine { cursor: default; }
+
+/* Cmd/Ctrl + wheel resize readout */
+.sizeHint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 248, 240, 0.9);
+  color: #8a4f5e;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(160, 90, 90, 0.18);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ---- phase 2 ---- */
+.chip {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  max-width: 92%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 244, 207, 0.95);
+  border: 1.5px solid #ffd66e;
+  color: #7a5a12;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(160, 120, 20, 0.18);
+  pointer-events: none;
+  z-index: 3;
+}
+.chipVoice {
+  background: rgba(255, 228, 238, 0.96);
+  border-color: #ff9db8;
+  color: #9a3657;
+  animation: chipPulse 1.4s ease-in-out infinite;
+}
+@keyframes chipPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 157, 184, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 157, 184, 0); }
+}
+.still .chipVoice { animation: none; }
+.desktop { cursor: default; }
+.desktop .chip { font-size: 13px; padding: 4px 12px; }
+/* In 桌面模式 the pet lives inside the scene's slot instead of filling its own window. */
+.wrap.desktop { position: absolute; overflow: visible; }
+.wrap.desktop:active { cursor: default; }
+.desktop .bubble { top: 8%; right: 86%; left: auto; width: 230px; font-size: 14px; }
