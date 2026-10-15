@@ -27,6 +27,15 @@ tauri-plugin-opener = "2.7.1"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "time"] }
 ureq = { version = "2", features = ["json"] }
 
+# macOS-only native bits: speech recognition (SFSpeechRecognizer + AVAudioEngine) and
+# desktop-level window placement (NSWindow level / collection behaviour).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSLocale", "NSError", "NSArray", "NSObject", "NSSet", "NSOperation"] }
+objc2-speech = "0.3"
+objc2-avf-audio = "0.3"
+
 [profile.release]
 codegen-units = 1
 lto = true
