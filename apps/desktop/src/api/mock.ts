@@ -4,7 +4,7 @@
  * localStorage. NOT used in the packaged app.
  */
 import type { NotificationRecord, PetMood, Site, Task, TaskDetail, TaskEvent, TaskStatus } from "@desktop-pet/shared";
-import { DEFAULT_SETTINGS, type AppSettings, type SiteInput, type TaskFilter, type TaskInput } from "./types";
+import { DEFAULT_SETTINGS, IDLE_VOICE, type ActivitySnapshot, type AppSettings, type SiteInput, type TaskFilter, type TaskInput, type VoiceStatus } from "./types";
 import type { PersonaMemory } from "@desktop-pet/shared";
 
 function defaultMemory(): PersonaMemory {
@@ -63,7 +63,11 @@ function seed(): MockDb {
 function load(): MockDb {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as MockDb;
+    if (raw) {
+      const db = JSON.parse(raw) as MockDb;
+      db.settings = { ...DEFAULT_SETTINGS, ...db.settings }; // settings saved before phase 2
+      return db;
+    }
   } catch {
     /* ignore */
   }
@@ -86,6 +90,8 @@ function emit(event: string, payload: unknown): void {
 }
 
 function mood(db: MockDb): PetMood {
+  // Ambient-state previews (?demo=music|nap|stretch) show the activity, not the demo task mood.
+  if (["music", "nap", "stretch"].some((f) => demoFlags().has(f))) return "idle";
   if (db.tasks.some((t) => t.status === "needs_attention")) return "needs_attention";
   if (db.tasks.some((t) => t.status === "running")) return "working";
   if (db.tasks.some((t) => t.status === "completed" && t.completedAt && Date.now() - t.completedAt < 12_000)) return "completed";
@@ -94,6 +100,32 @@ function mood(db: MockDb): PetMood {
 
 function validateUrl(url: string): void {
   if (!/^https?:\/\/[^/\s]+/i.test(url)) throw new Error(`URL 必须是 http(s) 地址: ${url}`);
+}
+
+/** `?demo=music|voice|nap` (comma separated) — preview phase-2 states in a plain browser. */
+export function demoFlags(): Set<string> {
+  try {
+    return new Set((new URLSearchParams(window.location.search).get("demo") ?? "").split(",").filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+export const DEMO_MUSIC = { appId: "com.tencent.QQMusicMac", app: "QQ音乐", title: "晴天", artist: "周杰伦" };
+
+export function demoActivity(): ActivitySnapshot {
+  const f = demoFlags();
+  if (f.has("music")) return { kind: "listening_music", music: DEMO_MUSIC, idleSecs: 3 };
+  if (f.has("nap")) return { kind: "napping", music: null, idleSecs: 900 };
+  if (f.has("stretch")) return { kind: "stretching", music: null, idleSecs: 200 };
+  return { kind: "none", music: null, idleSecs: 0 };
+}
+
+let mockVoice: VoiceStatus = { ...IDLE_VOICE };
+function setVoice(v: Partial<VoiceStatus>): VoiceStatus {
+  mockVoice = { ...mockVoice, ...v };
+  emit("voice-state", mockVoice);
+  return mockVoice;
 }
 
 export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
@@ -225,6 +257,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
       return done(db.settings);
     case "complete_first_run":
       db.settings.firstRunDone = true;
+      emit("settings-changed", db.settings);
       return done(db.settings);
     case "list_notifications":
       return done(db.notifications.slice(0, Number(args.limit ?? 50)));
@@ -303,6 +336,44 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
     case "chat_send":
       if (!db.settings.chatEnabled) throw new Error("聊天功能未开启（设置 → 小喵 → 聊天）");
       return done(`哼，${db.settings.userTitle}，这里是浏览器预览模式，本猫没法真的联网聊天啦。`);
+    case "chat_test":
+      if (!db.hasKey) throw new Error("请先在设置中保存 API Key（保存在系统钥匙串中）");
+      if (!String(args?.model ?? "").trim()) throw new Error("请先填写模型名称");
+      return done("浏览器预览模式：没有真的联网，但配置看起来没问题。");
+    case "set_pet_scale": {
+      const v = Number(args?.scale);
+      db.settings.petScale = Number.isFinite(v) ? Math.round(Math.min(2.5, Math.max(0.6, v)) * 100) / 100 : 1;
+      emit("settings-changed", db.settings);
+      return done(db.settings.petScale);
+    }
+    case "get_activity":
+      return done(db.settings.musicDetection || !demoFlags().has("music") ? demoActivity() : { kind: "none", music: null, idleSecs: 0 });
+    case "set_display_mode": {
+      const m = String(args.mode);
+      if (m !== "pet" && m !== "desktop") throw new Error(`未知的显示模式：${m}`);
+      db.settings.displayMode = m;
+      emit("settings-changed", db.settings);
+      emit("display-mode", m);
+      return done(db.settings);
+    }
+    case "voice_status":
+      return done(mockVoice);
+    case "voice_ptt_start":
+    case "voice_set_live":
+      if (!db.settings.voiceEnabled) throw new Error("语音对话未开启（设置 → 语音）");
+      if (cmd === "voice_set_live" && !args.enabled) return done(setVoice({ mode: "off", phase: "idle", transcript: "" }));
+      return done(setVoice({ mode: cmd === "voice_set_live" ? "live" : "push_to_talk", phase: "listening", transcript: "", error: null }));
+    case "voice_ptt_stop":
+      return done(setVoice({ phase: "idle", mode: "off" }));
+    case "voice_stop":
+      return done(setVoice({ mode: "off", phase: "idle", transcript: "", speaking: "" }));
+    case "voice_stop_speaking":
+      return done(setVoice({ phase: mockVoice.mode === "live" ? "listening" : "idle", speaking: "" }));
+    case "voice_speak":
+      return done(null);
+    case "voice_list_voices":
+      return done([]);
+    case "reset_panel_position":
     case "toggle_panel":
     case "show_panel":
     case "hide_panel":
