@@ -1,4 +1,4 @@
-import type { Emotion, PetMood } from "@desktop-pet/shared";
+import type { DisplayState, Emotion, PetMood } from "@desktop-pet/shared";
 import styles from "./Catgirl.module.css";
 import { buildCatgirlSvg } from "./catgirlSvg";
 import { normaliseLook, type PetRenderer } from "./PetRenderer";
@@ -18,6 +18,12 @@ const MOOD_CLASS: Record<PetMood, string | undefined> = {
   needs_attention: styles.needsAttention,
 };
 
+const STATE_CLASS: Partial<Record<DisplayState, string | undefined>> = {
+  listening_music: styles.stMusic,
+  napping: styles.stNap,
+  stretching: styles.stStretch,
+};
+
 /** Built-in layered SVG catgirl with CSS/JS Live2D-style motion. */
 export class SvgCatgirlRenderer implements PetRenderer {
   readonly kind = "svg" as const;
@@ -28,6 +34,9 @@ export class SvgCatgirlRenderer implements PetRenderer {
   private emotion: Emotion = "neutral";
   private animations = true;
   private lastLookAt = 0;
+  private state: DisplayState = "idle";
+  private speaking = false;
+  private listening = false;
 
   async mount(container: HTMLElement): Promise<void> {
     const root = document.createElement("div");
@@ -71,6 +80,21 @@ export class SvgCatgirlRenderer implements PetRenderer {
     window.setTimeout(() => this.blink(), 260);
   }
 
+  setDisplayState(state: DisplayState): void {
+    this.state = state;
+    this.applyClasses();
+  }
+
+  setSpeaking(speaking: boolean): void {
+    this.speaking = speaking;
+    this.applyClasses();
+  }
+
+  setListening(listening: boolean): void {
+    this.listening = listening;
+    this.applyClasses();
+  }
+
   destroy(): void {
     window.clearTimeout(this.blinkTimer);
     window.clearTimeout(this.idleLookTimer);
@@ -80,7 +104,15 @@ export class SvgCatgirlRenderer implements PetRenderer {
 
   private applyClasses(): void {
     if (!this.root) return;
-    const cls = [styles.root, EMOTION_CLASS[this.emotion], MOOD_CLASS[this.mood], this.animations ? undefined : styles.still];
+    const cls = [
+      styles.root,
+      EMOTION_CLASS[this.emotion],
+      MOOD_CLASS[this.mood],
+      STATE_CLASS[this.state],
+      this.speaking ? styles.voiceSpeak : undefined,
+      this.listening ? styles.voiceListen : undefined,
+      this.animations ? undefined : styles.still,
+    ];
     this.root.className = cls.filter(Boolean).join(" ");
   }
 
@@ -94,7 +126,7 @@ export class SvgCatgirlRenderer implements PetRenderer {
   private scheduleBlink(): void {
     const next = 2200 + Math.random() * 3200;
     this.blinkTimer = window.setTimeout(() => {
-      if (this.animations && this.mood !== "completed" && this.emotion !== "sleepy") {
+      if (this.animations && this.mood !== "completed" && this.emotion !== "sleepy" && this.state !== "napping") {
         this.blink();
         if (Math.random() < 0.18) window.setTimeout(() => this.blink(), 240);
       }
