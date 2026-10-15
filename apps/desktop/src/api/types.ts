@@ -41,9 +41,31 @@ export interface AppSettings {
   mealReminders: boolean;
   lateNightReminders: boolean;
   chatEnabled: boolean;
+  /** UI preset: deepseek | custom */
+  chatProvider: "deepseek" | "custom";
   chatEndpoint: string;
   chatModel: string;
+  /** Where the user last dragged the panel (physical px); null = beside the pet. */
+  panelPosition: { x: number; y: number } | null;
+  // phase 2: voice
+  voiceEnabled: boolean;
+  /** `say` voice name; "" = auto */
+  voiceName: string;
+  voiceRate: number;
+  voiceSilenceMs: number;
+  voiceReadReplies: boolean;
+  voiceOnDevice: boolean;
+  voiceBargeIn: boolean;
+  // phase 2: activity
+  musicDetection: boolean;
+  musicIncludeBrowsers: boolean;
+  idleStates: boolean;
+  // phase 2: display mode
+  displayMode: DisplayMode;
+  desktopInteractive: boolean;
 }
+
+export type DisplayMode = "pet" | "desktop";
 
 export interface SiteInput {
   name: string;
@@ -123,8 +145,22 @@ export const DEFAULT_SETTINGS: AppSettings = {
   mealReminders: true,
   lateNightReminders: true,
   chatEnabled: false,
-  chatEndpoint: "https://api.openai.com/v1",
-  chatModel: "gpt-4o-mini",
+  chatProvider: "deepseek",
+  chatEndpoint: "https://api.deepseek.com",
+  chatModel: "deepseek-flash",
+  panelPosition: null,
+  voiceEnabled: false,
+  voiceName: "",
+  voiceRate: 1.1,
+  voiceSilenceMs: 1200,
+  voiceReadReplies: false,
+  voiceOnDevice: true,
+  voiceBargeIn: true,
+  musicDetection: true,
+  musicIncludeBrowsers: false,
+  idleStates: true,
+  displayMode: "pet",
+  desktopInteractive: false,
 };
 
 export type { PersonaMemory, InteractionKind } from "@desktop-pet/shared";
@@ -133,3 +169,57 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+// ---- phase 2 ----
+
+export type VoiceMode = "off" | "push_to_talk" | "live";
+export type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
+export type VoicePermission = "authorized" | "denied" | "restricted" | "not_determined" | "unsupported";
+
+export interface VoiceStatus {
+  mode: VoiceMode;
+  phase: VoicePhase;
+  /** live transcript of what the user says */
+  transcript: string;
+  /** what 小喵 is currently saying */
+  speaking: string;
+  error: string | null;
+  sttSupported: boolean;
+  ttsSupported: boolean;
+  permission: VoicePermission;
+}
+
+export const IDLE_VOICE: VoiceStatus = {
+  mode: "off", phase: "idle", transcript: "", speaking: "", error: null,
+  sttSupported: false, ttsSupported: false, permission: "unsupported",
+};
+
+export interface VoiceInfo {
+  name: string;
+  locale: string;
+  sample: string;
+}
+
+export interface MusicInfo {
+  appId: string;
+  app: string;
+  title: string | null;
+  artist: string | null;
+}
+
+export type ActivityKind = "none" | "listening_music" | "stretching" | "napping";
+
+export interface ActivitySnapshot {
+  kind: ActivityKind;
+  music: MusicInfo | null;
+  idleSecs: number;
+}
+
+export type ActivityEvent =
+  | { type: "music_started"; app: string; title: string | null }
+  | { type: "track_changed"; app: string; title: string | null }
+  | { type: "music_stopped" }
+  | { type: "nap_started" }
+  | { type: "woke" };
+
+export type VoiceTurn = ChatMessage;
