@@ -6,7 +6,7 @@
  * apps/desktop/public/live2d/ before building, or point "Cubism Core 路径" in
  * settings at a local copy. Models are user-provided (.model3.json).
  */
-import { EMOTION_EXPRESSIONS, type Emotion, type PetMood } from "@desktop-pet/shared";
+import { EMOTION_EXPRESSIONS, STATE_REGISTRY, type DisplayState, type Emotion, type PetMood } from "@desktop-pet/shared";
 import { normaliseLook, type PetRenderer } from "./PetRenderer";
 
 declare global {
@@ -91,6 +91,8 @@ export class Live2DRenderer implements PetRenderer {
   private animations = true;
   private mood: PetMood = "idle";
   private resizeObs: ResizeObserver | null = null;
+  private displayState: DisplayState = "idle";
+  private mouthTimer: number | undefined;
 
   constructor(private readonly src: Live2DSources) {}
 
@@ -262,7 +264,46 @@ export class Live2DRenderer implements PetRenderer {
     if (group) this.model.motion(group, undefined, 2);
   }
 
+  /** Phase 2: ambient state -> try the registry's motion groups. Returns true if a motion played. */
+  setDisplayState(state: DisplayState): void {
+    if (state === this.displayState) return;
+    this.displayState = state;
+    if (!this.model || !this.animations) return;
+    if (STATE_REGISTRY[state].source !== "activity") return; // moods handled by setMood
+    const group = pickName(this.motionGroups(), STATE_REGISTRY[state].live2dMotions);
+    if (group) this.model.motion(group, undefined, 2);
+  }
+
+  /** True when the model has a motion for this state (otherwise the window shows a badge). */
+  hasMotionFor(state: DisplayState): boolean {
+    return !!pickName(this.motionGroups(), STATE_REGISTRY[state].live2dMotions);
+  }
+
+  /** Phase 2: drive ParamMouthOpenY while TTS is speaking (if the model has it). */
+  setSpeaking(speaking: boolean): void {
+    window.clearInterval(this.mouthTimer);
+    this.mouthTimer = undefined;
+    const core = this.model?.internalModel?.coreModel;
+    const set = (v: number) => {
+      try {
+        core?.setParameterValueById?.("ParamMouthOpenY", v);
+      } catch {
+        /* model without the parameter */
+      }
+    };
+    if (!speaking) {
+      set(0);
+      return;
+    }
+    let t = 0;
+    this.mouthTimer = window.setInterval(() => {
+      t += 1;
+      set(0.25 + 0.75 * Math.abs(Math.sin(t * 0.9)) * (0.6 + 0.4 * Math.random()));
+    }, 80);
+  }
+
   destroy(): void {
+    window.clearInterval(this.mouthTimer);
     this.destroyInternal();
   }
 
