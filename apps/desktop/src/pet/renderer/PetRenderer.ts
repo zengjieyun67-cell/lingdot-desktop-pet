@@ -1,4 +1,4 @@
-import type { Emotion, PetMood } from "@desktop-pet/shared";
+import type { DisplayState, Emotion, PetMood } from "@desktop-pet/shared";
 
 /**
  * Abstraction over the pet character. Two implementations:
@@ -17,6 +17,12 @@ export interface PetRenderer {
   setAnimationsEnabled(enabled: boolean): void;
   /** One-shot reaction when the user clicks/taps the pet. */
   poke(): void;
+  /** Phase 2: resolved display state (mood or ambient activity such as music / nap). */
+  setDisplayState?(state: DisplayState): void;
+  /** Phase 2: 小喵 is talking (TTS playing) – animate the mouth. */
+  setSpeaking?(speaking: boolean): void;
+  /** Phase 2: 小喵 is listening to the user (mic open) – perk the ears. */
+  setListening?(listening: boolean): void;
   destroy(): void;
 }
 
