@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { PetMood, Site } from "@desktop-pet/shared";
-import { api, errorText, hideCurrentWindow, on } from "../api/client";
+import { api, errorText, hideCurrentWindow, on, startDragging } from "../api/client";
 import type { AppSettings, ConnectionInfo, ConnectionStatus, NotificationEventPayload } from "../api/types";
 import { ErrorBanner, Spinner } from "./ui";
 import { TasksView } from "./TasksView";
@@ -9,22 +9,31 @@ import { NotificationsView } from "./NotificationsView";
 import { SettingsView } from "./SettingsView";
 import { FirstRun } from "./FirstRun";
 import { ChatView } from "./ChatView";
+import { requestSettingsSection } from "./SettingsView";
 import s from "./Panel.module.css";
 
 export type Tab = "tasks" | "sites" | "chat" | "notifications" | "settings";
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "tasks", label: "任务" },
-  { id: "sites", label: "网站" },
-  { id: "chat", label: "聊天" },
-  { id: "notifications", label: "通知" },
-  { id: "settings", label: "设置" },
+const TABS: Array<{ id: Tab; label: string; emoji: string }> = [
+  { id: "tasks", label: "任务", emoji: "🧶" },
+  { id: "sites", label: "网站", emoji: "🧭" },
+  { id: "chat", label: "聊天", emoji: "💬" },
+  { id: "notifications", label: "通知", emoji: "🔔" },
+  { id: "settings", label: "设置", emoji: "🎀" },
 ];
 
+/** Drag the borderless panel window by its header (buttons stay clickable). */
+function onHeaderMouseDown(e: React.MouseEvent) {
+  if (e.button !== 0) return;
+  if ((e.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+  e.preventDefault();
+  void startDragging();
+}
+
 const MOOD_TEXT: Record<PetMood, { face: string; text: string }> = {
-  idle: { face: "🐱", text: "悠闲中，随时待命" },
-  working: { face: "⌨️", text: "有任务正在进行…" },
-  completed: { face: "💖", text: "任务完成啦！" },
-  needs_attention: { face: "❗", text: "有任务需要你处理" },
+  idle: { face: "🐱", text: "悠闲地晒太阳中～" },
+  working: { face: "⌨️", text: "有任务在跑，本猫帮你盯着" },
+  completed: { face: "💖", text: "任务完成啦，快去看看！" },
+  needs_attention: { face: "❗", text: "有任务等你处理哦" },
 };
 
 interface PanelCtxValue {
@@ -169,19 +178,22 @@ export function PanelApp() {
 
   return (
     <div className={s.shell}>
-      <header className={s.header}>
+      <header className={s.header} onMouseDown={onHeaderMouseDown} title="按住这里可以拖动面板">
+        <span className={s.grip} aria-hidden="true" />
         <div className={s.avatar}>{MOOD_TEXT[mood].face}</div>
         <div className={s.titleBox}>
           <div className={s.title}>{settings?.petName ?? "小喵"}</div>
           <div className={s.subtitle}>{MOOD_TEXT[mood].text}</div>
         </div>
-        <button className={s.conn} onClick={() => setTab("settings")} title="浏览器扩展连接状态">
+        <button className={s.conn} onClick={() => {
+            if (connected) requestSettingsSection("extension");
+            setTab(connected ? "settings" : "tasks");
+          }} title={connected ? "浏览器扩展已连接" : "浏览器扩展未连接，点我看怎么装"}>
           <span className={`${s.dot} ${connected ? s.dotOn : ""}`} />
-          {connected ? "扩展已连接" : "扩展未连接"}
+          {connected ? "已连接" : "未连接"}
         </button>
         <button
-          className={s.conn}
-          style={{ padding: "3px 7px" }}
+          className={`${s.conn} ${s.close}`}
           onClick={() => void api.hidePanel().catch(() => hideCurrentWindow())}
           aria-label="关闭面板"
           title="关闭（Esc）"
@@ -193,6 +205,7 @@ export function PanelApp() {
       <nav className={s.tabs}>
         {TABS.map((t) => (
           <button key={t.id} className={`${s.tab} ${tab === t.id ? s.tabActive : ""}`} onClick={() => setTab(t.id)}>
+            <span className={s.tabEmoji} aria-hidden="true">{t.emoji}</span>
             {t.label}
             {t.id === "notifications" && unread > 0 && <span className={s.tabCount}>{unread > 9 ? "9+" : unread}</span>}
           </button>
