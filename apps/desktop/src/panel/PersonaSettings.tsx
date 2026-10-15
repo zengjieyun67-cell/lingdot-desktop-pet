@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { affinityLabel, familiarityLabel, type PersonaMemory } from "@desktop-pet/shared";
-import { api, errorText, on } from "../api/client";
+import { api, on } from "../api/client";
 import { usePanel } from "./PanelApp";
-import { Button, inputClass, Toggle } from "./ui";
+import { Button, inputClass, More, Toggle } from "./ui";
 import s from "./Panel.module.css";
 
 const MOOD_ZH: Record<string, string> = { neutral: "平静", happy: "开心", shy: "害羞", angry: "闹别扭", sleepy: "困" };
@@ -23,7 +23,7 @@ function Meter({ value }: { value: number }) {
   // A level gauge for a 0..100 score (affinity / familiarity) — not task progress.
   return (
     <span style={{ display: "inline-block", width: 70, height: 6, borderRadius: 6, background: "var(--accent-soft)", overflow: "hidden" }}>
-      <span style={{ display: "block", height: "100%", width: `${Math.max(0, Math.min(100, value))}%`, background: "linear-gradient(90deg,#ffa3c0,#9d82ff)" }} />
+      <span style={{ display: "block", height: "100%", width: `${Math.max(0, Math.min(100, value))}%`, background: "linear-gradient(90deg,#ffb59e,#ff8aa1)" }} />
     </span>
   );
 }
@@ -34,18 +34,12 @@ export function PersonaSettings() {
   const [mem, setMem] = useState<PersonaMemory | null>(null);
   const [name, setName] = useState(settings.petName);
   const [title, setTitle] = useState(settings.userTitle);
-  const [endpoint, setEndpoint] = useState(settings.chatEndpoint);
-  const [model, setModel] = useState(settings.chatModel);
-  const [key, setKey] = useState("");
-  const [hasKey, setHasKey] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [promptPath, setPromptPath] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setMem(await api.getPersonaMemory());
-      setHasKey(await api.hasChatApiKey());
       setPromptPath(await api.getPersonaPromptPath());
     } catch (e) {
       reportError(e);
@@ -69,7 +63,7 @@ export function PersonaSettings() {
 
   return (
     <>
-      <div className={s.sectionTitle}>小喵（性格与记忆）</div>
+      <div className={s.sectionTitle}>性格</div>
       <div className={s.group}>
         <Row title="名字">
           <input
@@ -115,6 +109,8 @@ export function PersonaSettings() {
             <Row title="熟悉度" desc={`语气：${familiarityLabel(mem.familiarity)}`}>
               <Meter value={mem.familiarity} /> <span style={{ width: 30, textAlign: "right" }}>{Math.round(mem.familiarity)}</span>
             </Row>
+            <div className={`${s.row} ${s.rowStack}`}>
+            <More label="更多记忆数据">
             <Row title="今天的心情">
               <span>{MOOD_ZH[mem.todayMood] ?? mem.todayMood}</span>
             </Row>
@@ -146,8 +142,13 @@ export function PersonaSettings() {
                 <span>23</span>
               </div>
             </div>
+            </More>
+            </div>
           </>
         )}
+        <Row title="人设文件" desc={promptPath || "—"}>
+          <span className={s.rowDesc}>可用文本编辑器修改</span>
+        </Row>
         <Row title="重置记忆" desc="清空好感度、熟悉度和使用习惯">
           {confirmReset ? (
             <Button
@@ -172,82 +173,6 @@ export function PersonaSettings() {
         </Row>
       </div>
 
-      <div className={s.sectionTitle}>聊天（可选，默认关闭）</div>
-      <div className={s.group}>
-        <Row title="启用聊天" desc="使用你自己的 OpenAI 兼容接口；不开启时离线台词照常工作">
-          <Toggle checked={settings.chatEnabled} onChange={(v) => saveSettings({ chatEnabled: v })} />
-        </Row>
-        <Row title="接口地址" desc="https，或本机 http://localhost（如 Ollama）">
-          <input
-            className={inputClass}
-            style={{ width: 170, fontSize: 11 }}
-            value={endpoint}
-            onChange={(e) => setEndpoint(e.target.value)}
-            onBlur={() => endpoint !== settings.chatEndpoint && saveSettings({ chatEndpoint: endpoint.trim() })}
-          />
-        </Row>
-        <Row title="模型">
-          <input
-            className={inputClass}
-            style={{ width: 170, fontSize: 11 }}
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            onBlur={() => model !== settings.chatModel && saveSettings({ chatModel: model.trim() })}
-          />
-        </Row>
-        <div className={s.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-          <div className={s.rowTitle}>API Key {hasKey ? "（已保存在系统钥匙串）" : "（未设置）"}</div>
-          <div className={s.rowDesc}>保存在 macOS 钥匙串中，只由后台在发送请求时读取，不会写入数据库或显示在界面上。</div>
-          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-            <input
-              className={inputClass}
-              style={{ flex: 1 }}
-              type="password"
-              autoComplete="off"
-              value={key}
-              placeholder={hasKey ? "输入新 Key 以替换" : "sk-..."}
-              onChange={(e) => setKey(e.target.value)}
-            />
-            <Button
-              small
-              variant="primary"
-              disabled={!key.trim()}
-              onClick={async () => {
-                try {
-                  await api.setChatApiKey(key.trim());
-                  setKey("");
-                  setHasKey(true);
-                  setMsg("已保存到钥匙串");
-                } catch (e) {
-                  setMsg(errorText(e));
-                }
-              }}
-            >
-              保存
-            </Button>
-            <Button
-              small
-              variant="danger"
-              disabled={!hasKey}
-              onClick={async () => {
-                try {
-                  await api.clearChatApiKey();
-                  setHasKey(false);
-                  setMsg("已删除");
-                } catch (e) {
-                  setMsg(errorText(e));
-                }
-              }}
-            >
-              删除
-            </Button>
-          </div>
-          {msg && <div className={s.rowDesc} style={{ marginTop: 4 }}>{msg}</div>}
-        </div>
-        <Row title="人设文件" desc={promptPath || "—"}>
-          <span className={s.rowDesc}>可用文本编辑器修改</span>
-        </Row>
-      </div>
     </>
   );
 }
