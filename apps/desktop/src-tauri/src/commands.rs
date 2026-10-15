@@ -202,6 +202,7 @@ pub fn update_settings(app: AppHandle, state: State<'_, AppState>, settings: App
         let mut incoming = settings;
         // Position is owned by the window manager, not the settings form.
         incoming.pet_position = old.pet_position.clone();
+        incoming.panel_position = old.panel_position.clone();
         (old, db.save_settings(&incoming).map_err(e)?)
     };
     if old.pet_visible != new.pet_visible {
@@ -225,8 +226,42 @@ pub fn update_settings(app: AppHandle, state: State<'_, AppState>, settings: App
             return Err(format!("开机启动设置失败: {err}"));
         }
     }
+    if old.display_mode != new.display_mode || old.desktop_interactive != new.desktop_interactive {
+        windows::apply_display_mode(&app, &new);
+        let _ = app.emit("display-mode", new.display_mode.clone());
+    }
     let _ = app.emit("settings-changed", new.clone());
     Ok(new)
+}
+
+/// Persist `display_mode`, switch windows + tray label, notify all windows.
+pub fn switch_display_mode(app: &AppHandle, mode: &str) -> CmdResult<AppSettings> {
+    if mode != "pet" && mode != "desktop" {
+        return Err(format!("未知的显示模式: {mode}"));
+    }
+    let state = app.state::<AppState>();
+    let new = {
+        let db = state.engine.db();
+        let mut s = db.get_settings().map_err(e)?;
+        s.display_mode = mode.to_string();
+        db.save_settings(&s).map_err(e)?
+    };
+    windows::apply_display_mode(app, &new);
+    let _ = app.emit("display-mode", new.display_mode.clone());
+    let _ = app.emit("settings-changed", new.clone());
+    Ok(new)
+}
+
+#[tauri::command]
+pub fn set_display_mode(app: AppHandle, mode: String) -> CmdResult<AppSettings> {
+    switch_display_mode(&app, &mode)
+}
+
+/// Tray: flip between 桌宠模式 and 桌面模式.
+pub fn toggle_display_mode(app: &AppHandle) {
+    let cur = app.state::<AppState>().engine.db().get_settings().map(|s| s.display_mode).unwrap_or_default();
+    let next = if cur == "desktop" { "pet" } else { "desktop" };
+    let _ = switch_display_mode(app, next);
 }
 
 pub fn toggle_animations(app: &AppHandle) {
@@ -371,6 +406,29 @@ pub fn set_pet_visible(app: AppHandle, visible: bool) {
 #[tauri::command]
 pub fn reset_pet_position(app: AppHandle) {
     windows::reset_pet_position(&app)
+}
+
+/// Resize the pet (Cmd/Ctrl + scroll over the pet, or the size slider). Returns the clamped scale.
+#[tauri::command]
+pub fn set_pet_scale(app: AppHandle, state: State<'_, AppState>, scale: f64) -> CmdResult<f64> {
+    let scale = pet_core::model::clamp_pet_scale(scale);
+    let new = {
+        let db = state.engine.db();
+        let mut s = db.get_settings().map_err(e)?;
+        if (s.pet_scale - scale).abs() < f64::EPSILON {
+            return Ok(scale);
+        }
+        s.pet_scale = scale;
+        db.save_settings(&s).map_err(e)?
+    };
+    windows::apply_pet_scale(&app, new.pet_scale);
+    let _ = app.emit("settings-changed", new.clone());
+    Ok(new.pet_scale)
+}
+
+#[tauri::command]
+pub fn reset_panel_position(app: AppHandle) {
+    windows::reset_panel_position(&app)
 }
 
 #[tauri::command]
