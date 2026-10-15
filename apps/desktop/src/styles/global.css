@@ -1,33 +1,48 @@
 :root {
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  --text: #241d38;
-  --text-2: #5d5478;
-  --text-3: #8f87a8;
-  --accent: #8b6cf0;
-  --accent-2: #b59cff;
-  --accent-soft: rgba(139, 108, 240, 0.12);
-  --pink: #ff7aa2;
-  --green: #2fb67c;
-  --amber: #f1a33b;
-  --red: #ec5a6f;
-  --glass: rgba(250, 248, 255, 0.78);
-  --glass-strong: rgba(255, 255, 255, 0.9);
-  --line: rgba(60, 40, 110, 0.09);
-  --shadow: 0 18px 50px rgba(48, 30, 100, 0.22), 0 2px 8px rgba(48, 30, 100, 0.08);
-  --radius: 18px;
+  /* Rounded Latin (SF Pro Rounded via ui-rounded on macOS WebKit) + PingFang for 中文 */
+  --font: ui-rounded, "SF Pro Rounded", "PingFang SC", -apple-system, BlinkMacSystemFont, "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --text: #4a3540;
+  --text-2: #7f6672;
+  --text-3: #b09aa4;
+  --accent: #ff8aa1;          /* strawberry milk */
+  --accent-2: #ffb59e;        /* peach */
+  --accent-strong: #f26f8b;
+  --accent-soft: rgba(255, 138, 161, 0.14);
+  --peach-soft: #ffeee6;
+  --yellow: #ffd66e;          /* soft butter yellow */
+  --yellow-soft: #fff4cf;
+  --pink: #ff7ea0;
+  --green: #4cc38a;
+  --amber: #f5a524;
+  --red: #ef6a7f;
+  --bg: #fff8f1;              /* warm cream */
+  --glass: rgba(255, 249, 243, 0.96);
+  --glass-strong: #ffffff;
+  --line: rgba(190, 120, 120, 0.13);
+  --card-shadow: 0 2px 10px rgba(214, 140, 140, 0.12), 0 1px 2px rgba(214, 140, 140, 0.08);
+  --card-shadow-hover: 0 8px 22px rgba(214, 130, 140, 0.2), 0 2px 4px rgba(214, 140, 140, 0.1);
+  --shadow: 0 20px 50px rgba(160, 90, 100, 0.22), 0 3px 10px rgba(160, 90, 100, 0.1);
+  --radius: 20px;
+  --radius-card: 16px;
+  --spring: cubic-bezier(0.3, 1.4, 0.5, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #f2eefc;
-    --text-2: #c3bad9;
-    --text-3: #8d84a6;
-    --accent-soft: rgba(181, 156, 255, 0.16);
-    --glass: rgba(34, 28, 50, 0.72);
-    --glass-strong: rgba(46, 38, 66, 0.92);
-    --line: rgba(255, 255, 255, 0.08);
-    --shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+    --text: #fbeef0;
+    --text-2: #d6bcc4;
+    --text-3: #9c8790;
+    --accent-soft: rgba(255, 138, 161, 0.18);
+    --peach-soft: rgba(255, 181, 158, 0.14);
+    --yellow-soft: rgba(255, 214, 110, 0.16);
+    --bg: #2d2428;
+    --glass: rgba(44, 34, 39, 0.96);
+    --glass-strong: #3a2e34;
+    --line: rgba(255, 220, 225, 0.09);
+    --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    --card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.35);
+    --shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
@@ -46,5 +61,6 @@ html, body, #root {
   overflow: hidden;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent-strong); }
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(120, 100, 180, 0.25); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb { background: rgba(214, 140, 150, 0.3); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
