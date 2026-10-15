@@ -78,7 +78,7 @@ if [ "$MISSING" -eq 0 ]; then
   echo "环境就绪 ✅  下一步："
   echo "  pnpm install"
   echo "  pnpm --filter @desktop-pet/desktop tauri build"
-  echo "  产物：apps/desktop/src-tauri/target/release/bundle/dmg/DesktopPet_0.1.0_<arch>.dmg"
+  echo "  产物：apps/desktop/src-tauri/target/release/bundle/dmg/lingdot-desktop-pet_0.1.0_<arch>.dmg"
 else
   echo "缺少 $MISSING 项，请按上面的 → 命令安装后重新运行本脚本。"
   exit 1
