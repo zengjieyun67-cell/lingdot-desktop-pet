@@ -7,6 +7,7 @@
 //! - `server`        — 127.0.0.1-only HTTP endpoint for the extension
 //! - `security`      — token generation / constant-time compare / origin policy
 
+pub mod activity;
 pub mod chat;
 pub mod db;
 pub mod engine;
@@ -16,6 +17,7 @@ pub mod protocol;
 pub mod security;
 pub mod server;
 pub mod state_machine;
+pub mod voice;
 
 pub use db::{Db, DbError};
 pub use engine::{Effect, Engine, Outcome};
