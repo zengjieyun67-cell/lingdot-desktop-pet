@@ -169,6 +169,12 @@ export function buildCatgirlSvg(c: ClassMap, uid = "cg"): string {
           <path class="${k("mouthPout")}" d="M95 129 Q100 125.5 105 129" fill="none" stroke="#7A4256" stroke-width="2" stroke-linecap="round"/>
           <path class="${k("mouthShy")}" d="M96 127.5 Q98 126 100 127.5 Q102 129 104 127.5" fill="none" stroke="#7A4256" stroke-width="1.7" stroke-linecap="round"/>
           <ellipse class="${k("mouthAlert")}" cx="100" cy="129" rx="3.4" ry="4.4" fill="#B84A63"/>
+          <ellipse class="${k("mouthTalk")}" cx="100" cy="128" rx="4" ry="3.6" fill="#C2526C" stroke="#7A4256" stroke-width="1.2"/>
+          <!-- napping: fully closed eyes -->
+          <g class="${k("eyesClosed")}" fill="none" stroke="#3B2A4D" stroke-width="3" stroke-linecap="round">
+            <path d="M70 110 Q80 116 90 110"/>
+            <path d="M110 110 Q120 116 130 110"/>
+          </g>
 
           <!-- front hair -->
           <path d="M50 99 C46 62 72 43 100 43 C128 43 154 62 150 99 C145 88 139 80 133 77 C131 88 125 93 118 95 C118 85 114 77 108 72 C104 84 96 90 86 93 C88 85 88 79 86 75 C78 83 70 89 59 91 C56 94 53 96 50 99 Z" fill="url(#${id("hair")})"/>
@@ -177,6 +183,14 @@ export function buildCatgirlSvg(c: ClassMap, uid = "cg"): string {
           <path d="M70 58 C80 52 92 50 102 51" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
           <!-- ahoge -->
           <path class="${k("ahoge")}" d="M100 45 C95 30 110 27 105 16" fill="none" stroke="#A893E3" stroke-width="3.2" stroke-linecap="round"/>
+          <!-- headphones (listening to music) -->
+          <g class="${k("headphones")}">
+            <path d="M52 100 C48 58 74 36 100 36 C126 36 152 58 148 100" fill="none" stroke="#FFC94D" stroke-width="7" stroke-linecap="round"/>
+            <path d="M52 100 C48 58 74 36 100 36 C126 36 152 58 148 100" fill="none" stroke="#FFE7A3" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+            <rect x="40" y="92" width="18" height="30" rx="8" fill="#FF9DB8" stroke="#E86C90" stroke-width="1.5"/>
+            <rect x="142" y="92" width="18" height="30" rx="8" fill="#FF9DB8" stroke="#E86C90" stroke-width="1.5"/>
+            <circle cx="49" cy="107" r="4" fill="#FFE7A3"/><circle cx="151" cy="107" r="4" fill="#FFE7A3"/>
+          </g>
           <!-- ribbon -->
           <g transform="translate(136 62) rotate(18)">
             <path d="M0 0 L-10 -7 L-10 7 Z M0 0 L10 -7 L10 7 Z" fill="#FF8FAE" stroke="#E86C90" stroke-width="1" stroke-linejoin="round"/>
@@ -201,6 +215,11 @@ export function buildCatgirlSvg(c: ClassMap, uid = "cg"): string {
   </g>
   <g class="${k("markZzz")}" fill="#8A75CF" font-family="-apple-system, Helvetica, sans-serif" font-weight="700">
     <text x="146" y="66" font-size="11">z</text><text x="154" y="55" font-size="14">z</text><text x="164" y="42" font-size="17">Z</text>
+  </g>
+  <g class="${k("notes")}" fill="#F0A43A" font-family="-apple-system, Helvetica, sans-serif" font-weight="700">
+    <text class="${k("note1")}" x="150" y="70" font-size="16">♪</text>
+    <text class="${k("note2")}" x="30" y="84" font-size="14">♫</text>
+    <text class="${k("note3")}" x="160" y="40" font-size="12">♪</text>
   </g>
   <g class="${k("markHeart")}">
     <path transform="translate(44 70) scale(0.9)" d="M0 6 C-10 -2 -8 -12 0 -7 C8 -12 10 -2 0 6 Z" fill="#FF8FB1"/>
