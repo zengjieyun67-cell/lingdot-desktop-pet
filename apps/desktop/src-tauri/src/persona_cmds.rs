@@ -6,7 +6,10 @@
 //!   written to SQLite / settings JSON and never sent to the webview.
 
 use crate::AppState;
-use pet_core::chat::{build_request, build_system_prompt, memory_summary, parse_response, validate_endpoint, ChatMessage};
+use pet_core::chat::{
+    apply_provider_options, build_request, build_system_prompt, build_test_request, memory_summary, parse_response, validate_endpoint,
+    ChatMessage,
+};
 use pet_core::model::now_ms;
 use pet_core::persona::{apply_interaction, set_today_mood as set_mood, PersonaMemory};
 use std::path::PathBuf;
@@ -129,6 +132,24 @@ pub fn has_chat_api_key() -> bool {
 
 #[tauri::command]
 pub async fn chat_send(app: AppHandle, history: Vec<ChatMessage>) -> CmdResult<String> {
+    chat_reply(&app, history).await
+}
+
+/// Is chat usable right now (enabled + key in the keychain)? Used by voice chat.
+pub fn chat_ready(app: &AppHandle) -> CmdResult<()> {
+    let enabled = app.state::<AppState>().engine.db().get_settings().map(|s| s.chat_enabled).unwrap_or(false);
+    if !enabled {
+        return Err("语音对话要用到聊天：请先在 设置 → 聊天 中开启并保存 API Key".into());
+    }
+    if !has_chat_api_key() {
+        return Err("还没有保存 API Key：请到 设置 → 聊天 粘贴 DeepSeek 的 Key".into());
+    }
+    Ok(())
+}
+
+/// One reply from 小喵 for `history` (persona prompt + memory summary), used by the chat
+/// tab and by voice chat.
+pub async fn chat_reply(app: &AppHandle, history: Vec<ChatMessage>) -> CmdResult<String> {
     let state = app.state::<AppState>();
     let (settings, memory, sites) = {
         let db = state.engine.db();
@@ -138,7 +159,7 @@ pub async fn chat_send(app: AppHandle, history: Vec<ChatMessage>) -> CmdResult<S
         return Err("聊天功能未开启（设置 → 小喵 → 聊天）".into());
     }
     let url = validate_endpoint(&settings.chat_endpoint)?;
-    let template = persona_prompt_path(&app)
+    let template = persona_prompt_path(app)
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
         .filter(|s| !s.trim().is_empty())
@@ -148,13 +169,21 @@ pub async fn chat_send(app: AppHandle, history: Vec<ChatMessage>) -> CmdResult<S
         memory_summary(&memory, &names)
     });
     let system = build_system_prompt(&template, &settings.pet_name, &settings.user_title, summary.as_deref());
-    let body = build_request(&settings.chat_model, &system, &history)?;
-    let key = entry()?
-        .get_password()
-        .map_err(|_| "请先在设置中保存 API Key（保存在系统钥匙串中）".to_string())?;
+    let body = apply_provider_options(build_request(&settings.chat_model, &system, &history)?, &url);
+    let key = stored_key()?;
+    post_chat(url, key, body, 60).await
+}
 
+fn stored_key() -> CmdResult<String> {
+    entry()?
+        .get_password()
+        .map_err(|_| "请先在设置中保存 API Key（保存在系统钥匙串中）".to_string())
+}
+
+/// POST an OpenAI-compatible chat request from Rust (the key never reaches the webview).
+async fn post_chat(url: String, key: String, body: serde_json::Value, timeout_secs: u64) -> CmdResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(60)).build();
+        let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(timeout_secs)).build();
         let resp = agent
             .post(&url)
             .set("Authorization", &format!("Bearer {key}"))
@@ -164,7 +193,17 @@ pub async fn chat_send(app: AppHandle, history: Vec<ChatMessage>) -> CmdResult<S
             Ok(r) => r.into_json().map_err(|_| "接口返回的不是 JSON".to_string())?,
             Err(ureq::Error::Status(code, r)) => {
                 let v: serde_json::Value = r.into_json().unwrap_or_default();
-                return Err(parse_response(&v).err().unwrap_or_else(|| format!("接口返回 HTTP {code}")));
+                let hint = match code {
+                    401 => "（API Key 无效或已失效）",
+                    402 => "（账户余额不足）",
+                    404 => "（接口地址或模型名不对）",
+                    429 => "（请求太频繁或额度用完）",
+                    _ => "",
+                };
+                return Err(match parse_response(&v).err() {
+                    Some(msg) if msg != "接口返回格式无法识别" => format!("HTTP {code}{hint}：{msg}"),
+                    _ => format!("接口返回 HTTP {code}{hint}"),
+                });
             }
             Err(err) => return Err(format!("网络错误：{err}")),
         };
@@ -172,4 +211,16 @@ pub async fn chat_send(app: AppHandle, history: Vec<ChatMessage>) -> CmdResult<S
     })
     .await
     .map_err(e)?
+}
+
+/// 「测试连接」: tiny request with the endpoint/model currently typed in the form
+/// (not necessarily saved yet) and the key from the keychain.
+#[tauri::command]
+pub async fn chat_test(endpoint: String, model: String) -> CmdResult<String> {
+    let url = validate_endpoint(&endpoint)?;
+    let body = apply_provider_options(build_test_request(&model)?, &url);
+    let key = stored_key()?;
+    let reply = post_chat(url.clone(), key, body, 20).await?;
+    let preview: String = reply.chars().take(30).collect();
+    Ok(format!("连接成功（{url}）：{preview}"))
 }
