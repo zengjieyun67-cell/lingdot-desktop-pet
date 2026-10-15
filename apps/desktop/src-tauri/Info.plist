@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>小喵需要使用麦克风来听你说话，用于语音聊天。声音只在本机处理，不会上传录音。</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>小喵使用 macOS 自带的语音识别把你说的话转成文字，再回复你。</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>小喵会读取“音乐”或 Spotify 正在播放的歌名，用来显示听歌动作，不会控制播放。</string>
+</dict>
+</plist>
