@@ -922,10 +922,33 @@ mod tests {
         s.launch_browser_app = "Google Chrome; rm -rf /".into();
         s.allowed_extension_id = "ABCdef".into();
         let saved = db.save_settings(&s).unwrap();
-        assert_eq!(saved.pet_scale, 1.0);
+        assert_eq!(saved.pet_scale, 2.5);
         assert_eq!(saved.launch_browser_app, "Google Chrome rm -rf ");
         assert_eq!(saved.allowed_extension_id, "def");
         assert_eq!(db.get_settings().unwrap(), saved);
+    }
+
+    #[test]
+    fn phase2_settings_defaults_and_sanitize() {
+        let db = Db::open_in_memory().unwrap();
+        let mut s = db.get_settings().unwrap();
+        assert_eq!(s.display_mode, "pet");
+        assert!(!s.voice_enabled && s.music_detection && s.idle_states);
+        s.display_mode = "fullscreen".into();
+        s.voice_rate = 7.0;
+        s.voice_silence_ms = 10;
+        s.voice_name = "Tingting\"; say hi".into();
+        let saved = db.save_settings(&s).unwrap();
+        assert_eq!(saved.display_mode, "pet");
+        assert_eq!(saved.voice_rate, 2.0);
+        assert_eq!(saved.voice_silence_ms, 600);
+        assert_eq!(saved.voice_name, "Tingting; say hi");
+        s.display_mode = "desktop".into();
+        assert_eq!(db.save_settings(&s).unwrap().display_mode, "desktop");
+        // settings saved by an older version (no phase-2 keys) still load with defaults
+        db.set_setting_raw("app_settings", r#"{"petScale":1.5}"#).unwrap();
+        let old = db.get_settings().unwrap();
+        assert_eq!((old.pet_scale, old.display_mode.as_str(), old.voice_rate), (1.5, "pet", 1.1));
     }
 
     #[test]
