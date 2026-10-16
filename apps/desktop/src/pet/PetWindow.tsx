@@ -8,7 +8,7 @@ import {
   type InteractionKind,
   type PetMood,
 } from "@desktop-pet/shared";
-import { api, on, startDragging } from "../api/client";
+import { api, isTauri, on, startDragging } from "../api/client";
 import type {
   ActivityEvent,
   ActivitySnapshot,
@@ -18,7 +18,10 @@ import type {
   PersonaMemory,
 } from "../api/types";
 import { useVoice, voicePhaseLabel } from "../lib/voice";
-import { createRenderer } from "./renderer/createRenderer";
+import { createRenderer, type Live2DPaths } from "./renderer/createRenderer";
+import { RadialMenu, radialProgress, type RadialAction } from "./RadialMenu";
+import { Spectrum } from "./Spectrum";
+import { hitArea, ShakeDetector, TouchReactor, type TouchKind } from "./touchReactions";
 import type { PetRenderer } from "./renderer/PetRenderer";
 import { PatDetector, PersonaController, type Spoken } from "./persona";
 import { playChime } from "./chime";
@@ -45,8 +48,15 @@ interface Bubble {
   url?: string | null;
 }
 
-function rendererKey(s: AppSettings): string {
-  return [s.rendererMode, s.live2dModelPath, s.live2dCorePath].join("|");
+/** What the renderer depends on: SVG vs Live2D + the two paths (auto → live2d alone does not remount). */
+export function rendererKey(s: Pick<AppSettings, "rendererMode" | "live2dModelPath" | "live2dCorePath">): string {
+  return [s.rendererMode === "svg" ? "svg" : "l2d", s.live2dModelPath.trim(), s.live2dCorePath.trim()].join("|");
+}
+
+/** Find + import the user's Live2D model when the configured one is missing (Tauri only). */
+async function autoImportLive2D(): Promise<Live2DPaths | null> {
+  const r = await api.scanImportLive2D(false);
+  return r.modelPath ? { modelPath: r.modelPath, corePath: r.corePath ?? "" } : null;
 }
 
 function personaSettings(s: AppSettings) {
@@ -90,8 +100,20 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
   const lastMusicLine = useRef(0);
   const pressTimer = useRef<number | undefined>(undefined);
   const pttActive = useRef(false);
+  const longTouched = useRef(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const { status: voiceStatus, pttStart, pttStop } = useVoice();
+  const mountedKey = useRef("");
+  const reactorRef = useRef(new TouchReactor());
+  const lastPatAt = useRef(0);
+  const voicePhaseRef = useRef(voiceStatus.phase);
+  voicePhaseRef.current = voiceStatus.phase;
+  const dragRef = useRef<{ active: boolean; shake: ShakeDetector; dropTimer?: number; lastShakeAt: number }>({
+    active: false,
+    shake: new ShakeDetector(),
+    lastShakeAt: 0,
+  });
+  const [dial, setDial] = useState<{ progress: number; label: string } | null>(null);
 
   /** Recompute the single state 小喵 shows (task mood vs. music / stretch / nap). */
   const refreshDisplay = useCallback(() => {
@@ -171,12 +193,65 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       .catch(() => undefined);
   }, []);
 
+  /** Head pat / poke / rub / long touch / drag / drop / shake: motion + bubble, occasionally a short spoken line. */
+  const touchReact = useCallback(
+    (kind: TouchKind) => {
+      const p = personaRef.current;
+      if (!p) return;
+      p.touch();
+      p.feel(kind === "drag_start" || kind === "shake" || kind === "drop" ? "dragged" : kind === "body_poke" || kind === "long_touch" ? "clicked" : "pat");
+      const st = settingsRef.current;
+      const voiceAllowed = isTauri() && (st?.touchVoice ?? true) && (voicePhaseRef.current ?? "idle") === "idle";
+      const r = reactorRef.current.react(kind, { affinity: p.affinity, hour: new Date().getHours(), emotion: p.emotion }, voiceAllowed);
+      const rend = rendererRef.current;
+      if (rend?.react) rend.react(kind);
+      else rend?.poke();
+      applyEmotion(p.emotion);
+      showBubble({ line: r.text }, 3200);
+      if (r.speak) void api.voiceSpeak(r.text).catch(() => undefined);
+      remember(kind === "drag_start" || kind === "shake" || kind === "drop" ? "drag" : kind === "body_poke" || kind === "long_touch" ? "click" : "pat");
+    },
+    [applyEmotion, showBubble, remember],
+  );
+
+  // Dragging the floating pet: the OS moves the window, so watch window moves for shake + drop.
+  useEffect(() => {
+    if (isDesktop || !isTauri()) return;
+    let off: (() => void) | undefined;
+    let alive = true;
+    void import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>
+      getCurrentWindow()
+        .onMoved(({ payload }) => {
+          const d = dragRef.current;
+          if (!d.active) return;
+          const now = Date.now();
+          if (d.shake.feed(payload.x, now) && now - d.lastShakeAt > 2500) {
+            d.lastShakeAt = now;
+            touchReact("shake");
+          }
+          window.clearTimeout(d.dropTimer);
+          d.dropTimer = window.setTimeout(() => {
+            d.active = false;
+            d.shake.reset();
+            touchReact("drop");
+          }, 550);
+        })
+        .then((u) => (alive ? (off = u) : u())),
+    ).catch(() => undefined);
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [isDesktop, touchReact]);
+
   const mountRenderer = useCallback(async (s: AppSettings) => {
     const stage = stageRef.current;
     if (!stage) return;
     rendererRef.current?.destroy();
     stage.replaceChildren();
-    const res = await createRenderer(s, stage);
+    mountedKey.current = rendererKey(s);
+    const res = await createRenderer(s, stage, isTauri() ? { autoImport: autoImportLive2D } : {});
+    if (res.imported) mountedKey.current = rendererKey({ rendererMode: "live2d", live2dModelPath: res.imported.modelPath, live2dCorePath: res.imported.corePath });
     rendererRef.current = res.renderer;
     res.renderer.setAnimationsEnabled(s.animationsEnabled);
     res.renderer.setMood(moodRef.current);
@@ -266,7 +341,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
           setVoiceEnabled(s.voiceEnabled);
           refreshDisplay();
           setAnimations(s.animationsEnabled);
-          if (!prev || rendererKey(prev) !== rendererKey(s)) void mountRenderer(s);
+          if (!prev || (rendererKey(prev) !== rendererKey(s) && mountedKey.current !== rendererKey(s))) void mountRenderer(s);
           else rendererRef.current?.setAnimationsEnabled(s.animationsEnabled);
         }),
         await on<NotificationEventPayload>("notification", ({ record, sound }) => {
@@ -319,13 +394,10 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       d.dragging = true;
       window.clearTimeout(pressTimer.current);
       if (isDesktop) return; // the desktop scene is fixed; only the floating pet can be dragged
-      void startDragging().then(() => {
-        const p = personaRef.current;
-        if (!p) return;
-        p.touch();
-        speak(p.say("dragged", {}, true));
-        remember("drag");
-      });
+      dragRef.current.active = true;
+      dragRef.current.shake.reset();
+      touchReact("drag_start");
+      void startDragging();
     }
     const rect = e.currentTarget.getBoundingClientRect();
     rendererRef.current?.lookAt(e.clientX - rect.width / 2, e.clientY - rect.height * 0.38);
@@ -333,12 +405,10 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
     const overHead = e.clientY < rect.height * 0.55 && e.clientY > rect.height * 0.12;
     if (!d && e.buttons === 0 && overHead) {
       if (patRef.current.feed(e.clientX, Date.now())) {
-        const p = personaRef.current;
-        if (p) {
-          p.touch();
-          speak(p.say("pat"));
-          remember("pat");
-        }
+        // a second stroke soon after the first = repeated rubbing
+        const now = Date.now();
+        touchReact(now - lastPatAt.current < 5000 ? "rub" : "head_pat");
+        lastPatAt.current = now;
       }
     } else if (!overHead) {
       patRef.current.reset();
@@ -356,6 +426,13 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
         pttActive.current = true;
         void pttStart();
       }, LONG_PRESS_MS);
+    } else {
+      // voice off: a long touch is a gentle "hold" reaction instead of push-to-talk
+      pressTimer.current = window.setTimeout(() => {
+        if (!down.current || down.current.dragging) return;
+        longTouched.current = true;
+        touchReact("long_touch");
+      }, LONG_PRESS_MS * 2);
     }
   };
 
@@ -369,19 +446,40 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       return;
     }
     if (e.button !== 0 || !d || d.dragging) return;
-    rendererRef.current?.poke();
-    const p = personaRef.current;
-    if (p) {
-      p.touch();
-      speak(p.say("clicked", {}, true));
-      remember("click");
+    if (longTouched.current) {
+      longTouched.current = false;
+      return;
     }
+    const rect = e.currentTarget.getBoundingClientRect();
+    touchReact(hitArea(e.clientY - rect.top, rect.height) === "head" ? "head_pat" : "body_poke");
     void api.togglePanel();
   };
 
+  /** Right-click: radial glass dial (聊天 / 任务 / 音乐 / 设置 + push-to-talk mic). */
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    void api.showPanel("settings");
+    if (quiet) return;
+    setDial({ progress: 0, label: "今日任务" });
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    void api
+      .listTasks({ limit: 60 })
+      .then((ts) => {
+        const done = ts.filter((t) => t.status === "completed" && t.updatedAt >= from.getTime()).length;
+        const running = ts.filter((t) => t.status === "running" || t.status === "needs_attention").length;
+        setDial((d) => d && { progress: radialProgress(done, running), label: `今日完成 ${done} · 进行中 ${running}` });
+      })
+      .catch(() => undefined);
+  };
+
+  const onDialAction = (a: RadialAction) => {
+    setDial(null);
+    if (a === "music") {
+      const m = activityRef.current.music;
+      showBubble({ line: m ? `正在听《${m.title ?? "这首歌"}》${m.artist ? ` — ${m.artist}` : ""}，主人品味不错嘛～` : "现在没有在放歌哦，放一首给我听听？" }, LINE_BUBBLE_MS);
+      return;
+    }
+    void api.showPanel(a);
   };
 
   const openBubble = (e: React.MouseEvent) => {
@@ -398,8 +496,8 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
   const voiceLabel = voicePhaseLabel(voiceStatus);
   const musicTitle = displayState === "listening_music" && activity.music ? activity.music.title ?? activity.music.app : null;
   const hint = voiceEnabled
-    ? "单击打开面板 · 长按说话 · 拖动移动 · 在头上来回摸摸 · ⌘/Ctrl+滚轮调大小 · 右键设置"
-    : "单击打开面板 · 拖动移动 · 在头上来回摸摸 · ⌘/Ctrl+滚轮调大小 · 右键设置";
+    ? "单击打开面板 · 长按说话 · 拖动移动 · 在头上来回摸摸 · ⌘/Ctrl+滚轮调大小 · 右键快捷菜单"
+    : "单击打开面板 · 拖动移动 · 在头上来回摸摸 · ⌘/Ctrl+滚轮调大小 · 右键快捷菜单";
 
   return (
     <div
@@ -420,7 +518,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       onContextMenu={onContextMenu}
       title={isDesktop ? hint.replace(" · 拖动移动", "").replace(" · ⌘/Ctrl+滚轮调大小", "") : hint}
     >
-      {bubble && !quiet && (
+      {bubble && !quiet && !dial && (
         <div
           className={`${styles.bubble} ${bubble.notificationId ? "" : styles.bubbleLine}`}
           onMouseDown={(e) => e.stopPropagation()}
@@ -447,6 +545,26 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
         musicTitle && !bubble && <div className={styles.chip}>♪ 正在听：{musicTitle}</div>
       )}
       {sizeHint && <div className={styles.sizeHint}>{sizeHint}</div>}
+      {isDesktop && displayState === "listening_music" && <Spectrum className={styles.spectrum} />}
+      {dial && (
+        <RadialMenu
+          progress={dial.progress}
+          progressLabel={dial.label}
+          listening={voiceStatus.phase === "listening"}
+          voiceEnabled={voiceEnabled}
+          onAction={onDialAction}
+          onMicDown={() => {
+            pttActive.current = true;
+            void pttStart();
+          }}
+          onMicUp={() => {
+            if (!pttActive.current) return;
+            pttActive.current = false;
+            void pttStop();
+          }}
+          onClose={() => setDial(null)}
+        />
+      )}
       <div ref={stageRef} className={styles.stage} />
     </div>
   );
