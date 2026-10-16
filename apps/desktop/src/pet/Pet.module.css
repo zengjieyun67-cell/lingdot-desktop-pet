@@ -146,3 +146,14 @@
 .desktop .bubble { top: 8%; right: 86%; left: auto; width: 230px; font-size: 14px; }
 /* 杂志海报: the slot is a tall half-body crop, keep the bubble beside the face, off the headline numerals */
 :global([data-pet-slot="poster"]) .desktop .bubble { top: 33%; right: 74%; }
+/* 听歌: spectrum bars at the pet's feet (desktop / screensaver scenes) */
+.spectrum {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  width: 78%;
+  z-index: 2;
+  opacity: 0.9;
+}
+.still .spectrum i { animation: none; transform: scaleY(0.6); }
