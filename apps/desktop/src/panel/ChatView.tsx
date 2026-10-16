@@ -3,6 +3,7 @@ import { api, errorText } from "../api/client";
 import { useVoice, voice, voicePhaseLabel } from "../lib/voice";
 import type { ChatMessage } from "../api/types";
 import { usePanel } from "./PanelApp";
+import { remindLabel } from "../notes/noteText";
 import { requestSettingsSection } from "./SettingsView";
 import { Button, Empty, inputClass } from "./ui";
 import s from "./Panel.module.css";
@@ -61,6 +62,13 @@ export function ChatView() {
     setBusy(true);
     setError(null);
     try {
+      // 「记一下…」 becomes a 便签 instead of a chat turn
+      const note = await api.noteFromText(content).catch(() => null);
+      if (note) {
+        const when = note.remindAt ? `，${remindLabel(note.remindAt)} 叫你` : "";
+        setHistory((h) => [...h, { role: "assistant", content: `记好啦～已经贴进便签了${when}。` }]);
+        return;
+      }
       const reply = await api.chatSend(next);
       setHistory((h) => [...h, { role: "assistant", content: reply }]);
       if (settings.voiceEnabled && settings.voiceReadReplies) void voice.speak(reply).catch(() => undefined);
