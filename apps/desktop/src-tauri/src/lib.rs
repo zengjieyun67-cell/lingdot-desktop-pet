@@ -4,6 +4,8 @@
 mod live2d_cmds;
 mod activity_probe;
 mod commands;
+mod desktop_cmds;
+mod notes_cmds;
 mod effects;
 mod persona_cmds;
 mod stt;
@@ -32,6 +34,8 @@ pub struct AppState {
     pub pending_panel_pos: Mutex<Option<(i32, i32)>>,
     /// When we last moved the panel ourselves (its Moved events are not user drags).
     pub panel_placed_at: Mutex<Option<std::time::Instant>>,
+    /// Floating 便签 windows moved / resized since the last flush: id -> (physical pos, logical size).
+    pub pending_note_geom: Mutex<std::collections::HashMap<String, (Option<(i64, i64)>, Option<(i64, i64)>)>>,
 }
 
 const TOKEN_KEY: &str = "session_token";
@@ -65,6 +69,7 @@ pub fn run() {
         .manage(TrayModeItem::default())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -100,6 +105,7 @@ pub fn run() {
                 pending_pet_pos: Mutex::new(None),
                 pending_panel_pos: Mutex::new(None),
                 panel_placed_at: Mutex::new(None),
+                pending_note_geom: Mutex::new(Default::default()),
             });
 
             // ---- Live2D: find + import the user's own model when the configured one is missing
@@ -137,12 +143,13 @@ pub fn run() {
             *app.state::<TrayModeItem>().0.lock().unwrap() = Some(mode_item.clone());
             let toggle = MenuItem::with_id(app, "toggle_pet", "显示 / 隐藏桌宠", true, None::<&str>)?;
             let panel = MenuItem::with_id(app, "open_panel", "打开面板", true, None::<&str>)?;
+            let new_note = MenuItem::with_id(app, "new_note", "新建便签", true, Some("CmdOrCtrl+Shift+N"))?;
             let saver = MenuItem::with_id(app, "screensaver", "进入屏保", true, None::<&str>)?;
             let reset = MenuItem::with_id(app, "reset_position", "重置桌宠位置", true, None::<&str>)?;
             let anim = MenuItem::with_id(app, "toggle_animations", "开关动画", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &mode_item, &saver, &panel, &reset, &anim, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&toggle, &mode_item, &saver, &panel, &new_note, &reset, &anim, &sep, &quit])?;
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("lingdot-desktop-pet")
                 .menu(&menu)
@@ -151,6 +158,7 @@ pub fn run() {
                     "toggle_pet" => windows::toggle_pet(app),
                     "toggle_mode" => commands::toggle_display_mode(app),
                     "open_panel" => windows::show_panel(app),
+                    "new_note" => notes_cmds::new_quick_note(app),
                     "screensaver" => windows::show_screensaver(app),
                     "reset_position" => windows::reset_pet_position(app),
                     "toggle_animations" => commands::toggle_animations(app),
@@ -168,6 +176,18 @@ pub fn run() {
 
             // ---- windows (after the tray so the mode label can be updated)
             windows::restore_pet(app.handle(), &settings);
+            notes_cmds::restore_popped(app.handle());
+
+            // ---- ⌘⇧N: new sticky note from anywhere
+            {
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+                let sc = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyN);
+                let _ = app.global_shortcut().on_shortcut(sc, |app, _sc, ev| {
+                    if ev.state == ShortcutState::Pressed {
+                        notes_cmds::new_quick_note(app);
+                    }
+                });
+            }
             {
                 use tauri::Emitter;
                 let _ = app.handle().emit("display-mode", settings.display_mode.clone());
@@ -177,6 +197,7 @@ pub fn run() {
             let h = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut iv = tokio::time::interval(Duration::from_secs(1));
+                let mut reminder_tick: u64 = 9;
                 loop {
                     iv.tick().await;
                     let state = h.state::<AppState>();
@@ -188,6 +209,11 @@ pub fn run() {
                     effects::refresh_mood(&h);
                     windows::flush_pet_position(&h);
                     windows::flush_panel_position(&h);
+                    notes_cmds::flush_note_geometry(&h);
+                    reminder_tick += 1;
+                    if reminder_tick % 10 == 0 {
+                        notes_cmds::check_reminders(&h);
+                    }
                 }
             });
 
@@ -206,6 +232,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { .. } if window.label().starts_with(notes_cmds::NOTE_PREFIX) => {
+                // ⌘W on a floating note really closes it (the note itself stays in 便签).
+                notes_cmds::note_window_closed(window);
+            }
+            WindowEvent::Moved(pos) if window.label().starts_with(notes_cmds::NOTE_PREFIX) => {
+                notes_cmds::note_geometry_event(window, Some((pos.x, pos.y)), None);
+            }
+            WindowEvent::Resized(size) if window.label().starts_with(notes_cmds::NOTE_PREFIX) => {
+                notes_cmds::note_geometry_event(window, None, Some((size.width, size.height)));
+            }
             WindowEvent::CloseRequested { api, .. } => {
                 // Windows are never destroyed; quitting is via tray / settings.
                 api.prevent_close();
@@ -293,6 +329,21 @@ pub fn run() {
             voice::voice_speak,
             voice::voice_list_voices,
             activity_probe::get_activity,
+            notes_cmds::list_notes,
+            notes_cmds::create_note,
+            notes_cmds::update_note,
+            notes_cmds::delete_note,
+            notes_cmds::restore_note,
+            notes_cmds::pop_out_note,
+            notes_cmds::close_note_window,
+            notes_cmds::note_from_text,
+            notes_cmds::new_quick_note_cmd,
+            desktop_cmds::list_desktop_folders,
+            desktop_cmds::open_desktop_folder,
+            desktop_cmds::add_desktop_folder,
+            desktop_cmds::remove_desktop_folder,
+            desktop_cmds::get_weather,
+            desktop_cmds::get_system_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
