@@ -949,6 +949,21 @@ mod tests {
         db.set_setting_raw("app_settings", r#"{"petScale":1.5}"#).unwrap();
         let old = db.get_settings().unwrap();
         assert_eq!((old.pet_scale, old.display_mode.as_str(), old.voice_rate), (1.5, "pet", 1.1));
+        assert_eq!((old.desktop_style.as_str(), old.screensaver_idle_mins), ("sonoma", 0));
+    }
+
+    #[test]
+    fn desktop_style_and_screensaver_sanitize() {
+        let db = Db::open_in_memory().unwrap();
+        let mut s = db.get_settings().unwrap();
+        s.desktop_style = "poster".into();
+        s.screensaver_idle_mins = 10;
+        let saved = db.save_settings(&s).unwrap();
+        assert_eq!((saved.desktop_style.as_str(), saved.screensaver_idle_mins), ("poster", 10));
+        s.desktop_style = "neon".into();
+        s.screensaver_idle_mins = 9999;
+        let saved = db.save_settings(&s).unwrap();
+        assert_eq!((saved.desktop_style.as_str(), saved.screensaver_idle_mins), ("sonoma", 240));
     }
 
     #[test]
