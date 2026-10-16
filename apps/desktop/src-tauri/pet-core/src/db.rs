@@ -105,6 +105,26 @@ const MIGRATIONS: &[&str] = &[
         updated_at INTEGER NOT NULL
     );
     "#,
+    // v3 — 便签 (sticky notes; floating windows remember their geometry)
+    r#"
+    CREATE TABLE notes (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL DEFAULT '',
+        color TEXT NOT NULL DEFAULT 'yellow',
+        pinned INTEGER NOT NULL DEFAULT 0,
+        popped INTEGER NOT NULL DEFAULT 0,
+        x INTEGER,
+        y INTEGER,
+        w INTEGER NOT NULL DEFAULT 240,
+        h INTEGER NOT NULL DEFAULT 220,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        remind_at INTEGER,
+        reminded INTEGER NOT NULL DEFAULT 0,
+        done INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_notes_remind ON notes(remind_at) WHERE remind_at IS NOT NULL;
+    "#,
 ];
 
 pub struct Db {
@@ -964,6 +984,25 @@ mod tests {
         s.screensaver_idle_mins = 9999;
         let saved = db.save_settings(&s).unwrap();
         assert_eq!((saved.desktop_style.as_str(), saved.screensaver_idle_mins), ("sonoma", 240));
+    }
+
+    #[test]
+    fn desktop_folders_and_note_settings_sanitize() {
+        let db = Db::open_in_memory().unwrap();
+        let mut s = db.get_settings().unwrap();
+        assert!(!s.screensaver_notes, "屏保显示便签 defaults off");
+        assert!(s.desktop_weather);
+        s.desktop_folders = vec!["/Users/d/Music/".into(), "relative/path".into(), "/Users/d/Music".into(), "/".into()];
+        for i in 0..12 {
+            s.desktop_folders.push(format!("/tmp/f{i}"));
+        }
+        let saved = db.save_settings(&s).unwrap();
+        assert_eq!(saved.desktop_folders[0], "/Users/d/Music");
+        assert_eq!(saved.desktop_folders.len(), 8);
+        assert!(!saved.desktop_folders.iter().any(|f| f == "relative/path" || f.is_empty()));
+        // settings saved before these fields existed still load
+        let old: AppSettings = serde_json::from_str(r#"{"petName":"小喵"}"#).unwrap();
+        assert!(old.desktop_folders.is_empty() && !old.screensaver_notes);
     }
 
     #[test]
