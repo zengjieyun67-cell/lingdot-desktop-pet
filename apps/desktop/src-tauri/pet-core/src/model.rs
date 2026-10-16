@@ -276,6 +276,10 @@ pub struct AppSettings {
     pub display_mode: String,
     /// Desktop mode: sit above desktop icons so the scene is clickable.
     pub desktop_interactive: bool,
+    /// Look of 桌面模式 + 屏保模式: sonoma (aurora + thin clock) | poster (magazine poster).
+    pub desktop_style: String,
+    /// Start the lingdot screen saver after this many idle minutes (0 = never).
+    pub screensaver_idle_mins: u32,
 }
 
 /// Pet size range (multiplier of the 200×240 base window).
@@ -338,6 +342,8 @@ impl Default for AppSettings {
             idle_states: true,
             display_mode: "pet".into(),
             desktop_interactive: false,
+            desktop_style: "sonoma".into(),
+            screensaver_idle_mins: 0,
         }
     }
 }
@@ -399,6 +405,10 @@ impl AppSettings {
         if !["pet", "desktop"].contains(&self.display_mode.as_str()) {
             self.display_mode = "pet".into();
         }
+        if !["sonoma", "poster"].contains(&self.desktop_style.as_str()) {
+            self.desktop_style = "sonoma".into();
+        }
+        self.screensaver_idle_mins = self.screensaver_idle_mins.min(240);
         self
     }
 }
