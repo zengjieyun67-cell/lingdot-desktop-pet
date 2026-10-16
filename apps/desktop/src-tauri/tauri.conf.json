@@ -29,6 +29,7 @@
         "skipTaskbar": true,
         "visible": false,
         "focus": false,
+        "dragDropEnabled": false,
         "acceptFirstMouse": true
       },
       {
