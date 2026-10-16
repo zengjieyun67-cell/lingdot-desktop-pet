@@ -152,8 +152,25 @@
   left: 50%;
   bottom: 2px;
   transform: translateX(-50%);
-  width: 78%;
+  width: 70%;
   z-index: 2;
-  opacity: 0.9;
 }
 .still .spectrum i { animation: none; transform: scaleY(0.6); }
+
+/* text dragged over 小喵 → it becomes a 便签 */
+.dropHover::after {
+  content: "松手记成便签";
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(22, 24, 29, 0.85);
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px rgba(0, 207, 227, 0.4);
+  pointer-events: none;
+  z-index: 40;
+}
