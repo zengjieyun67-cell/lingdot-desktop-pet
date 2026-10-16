@@ -130,6 +130,9 @@ export const api = {
   // phase 2: activity + display mode
   getActivity: () => invoke<ActivitySnapshot>("get_activity"),
   setDisplayMode: (mode: DisplayMode) => invoke<AppSettings>("set_display_mode", { mode }),
+  // 屏保模式 (full-screen, look-only window at #/screensaver)
+  startScreensaver: () => invoke<void>("start_screensaver"),
+  exitScreensaver: () => invoke<void>("exit_screensaver"),
 };
 
 export function errorText(e: unknown): string {
