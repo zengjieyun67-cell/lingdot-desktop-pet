@@ -219,3 +219,48 @@ export function posterHeadline(h: number): [string, string] {
   if (h < 22) return ["After", "Dark."];
   return ["Late", "Night."];
 }
+
+/** How much each phase photo shows right now (sums to 1) — the 「海」 scene crossfades its photos with this. */
+export function phaseWeights(minuteOfDay: number): Record<Phase, number> {
+  const m = ((minuteOfDay % 1440) + 1440) % 1440;
+  let i = 0;
+  while (i < PINS.length - 2 && PINS[i + 1]![0] <= m) i++;
+  const [m0, p0] = PINS[i]!;
+  const [m1, p1] = PINS[i + 1]!;
+  const t = m1 === m0 ? 0 : smooth((m - m0) / (m1 - m0));
+  const w: Record<Phase, number> = { dawn: 0, day: 0, dusk: 0, night: 0 };
+  w[p0] += 1 - t;
+  w[p1] += t;
+  return w;
+}
+
+const WEEKDAY_SHORT = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+export const WEEKDAYS_SCRIPT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Small greeting above the clock: 早安，星期五 / 晚安，星期日. */
+export function greeting(d: Date): string {
+  const h = d.getHours();
+  const word = h < 5 ? "晚安" : h < 11 ? "早安" : h < 14 ? "午安" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "晚安";
+  return `${word}，${WEEKDAY_SHORT[d.getDay()]}`;
+}
+
+export const DAILY_QUOTES: string[] = [
+  "慢慢来，比较快。",
+  "把今天过成喜欢的样子。",
+  "海很大，你也可以很勇敢。",
+  "累了就停一下，风会等你。",
+  "Stay soft, stay curious.",
+  "一点点进步，也是进步。",
+  "今天也辛苦啦，记得喝水。",
+  "Do one thing at a time.",
+  "认真生活的人，自带光。",
+  "别急，好事正在路上。",
+  "Less noise, more ocean.",
+  "你已经做得很好了。",
+];
+
+/** One quote per calendar day (stable within the day). */
+export function dailyQuote(d: Date): string {
+  const day = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86_400_000);
+  return DAILY_QUOTES[((day % DAILY_QUOTES.length) + DAILY_QUOTES.length) % DAILY_QUOTES.length]!;
+}
