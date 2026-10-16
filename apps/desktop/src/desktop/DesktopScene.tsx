@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import type { Task } from "@desktop-pet/shared";
 import { api, on } from "../api/client";
-import type { ActivitySnapshot, AppSettings, DesktopStyle } from "../api/types";
-import { minuteOfDay, PHASE_LABEL, partOfDay, posterHeadline, themeAt, themeVars, type Phase } from "./timeOfDay";
+import { DESKTOP_STYLES, type ActivitySnapshot, type AppSettings, type DesktopStyle } from "../api/types";
+import { dailyQuote, greeting, minuteOfDay, PHASE_LABEL, partOfDay, phaseWeights, posterHeadline, themeAt, themeVars, WEEKDAYS_SCRIPT, type Phase } from "./timeOfDay";
+import { NowPlaying } from "../ui/NowPlaying";
 import { previewStyle, useMinuteClock } from "./useSceneClock";
 import s from "./DesktopScene.module.css";
 
@@ -93,6 +94,8 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activity, setActivity] = useState<ActivitySnapshot | null>(null);
   const [name, setName] = useState("小喵");
+  const [slogan, setSlogan] = useState("今天也要元气满满.");
+  const [scriptWeekday, setScriptWeekday] = useState(true);
   const [style, setStyle] = useState<DesktopStyle>(() => previewStyle() ?? "sonoma");
   const saver = mode === "screensaver";
   useScreensaverExit(saver);
@@ -102,7 +105,9 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
     const offs: Array<() => void> = [];
     const apply = (st: AppSettings) => {
       setName(st.petName || "小喵");
-      setStyle(previewStyle() ?? (st.desktopStyle === "poster" ? "poster" : "sonoma"));
+      setStyle(previewStyle() ?? (DESKTOP_STYLES.includes(st.desktopStyle) ? st.desktopStyle : "sonoma"));
+      setSlogan(st.desktopSlogan?.trim() || "今天也要元气满满.");
+      setScriptWeekday(st.desktopScriptWeekday ?? true);
     };
     const load = () =>
       void api
@@ -149,16 +154,25 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
     { id: "saver", label: "屏保", run: startSaver },
   ];
 
-  const info: SceneInfo = { now, phase: theme.phase, name, stateText, music, done, entries, saver, pet };
+  const info: SceneInfo = { now, phase: theme.phase, name, stateText, music, done, entries, saver, pet, slogan, scriptWeekday };
+  const styleClass = { sonoma: s.sonoma, poster: s.poster, sea: s.sea, slogan: s.slogan }[style];
   return (
     <div
-      className={`${s.scene} ${style === "poster" ? s.poster : s.sonoma} ${saver ? s.saver : ""}`}
+      className={`${s.scene} ${styleClass} ${saver ? s.saver : ""}`}
       style={vars}
       data-phase={theme.phase}
       data-style={style}
       data-mode={mode}
     >
-      {style === "poster" ? <PosterScene {...info} /> : <SonomaScene {...info} />}
+      {style === "poster" ? (
+        <PosterScene {...info} />
+      ) : style === "sea" ? (
+        <SeaScene {...info} />
+      ) : style === "slogan" ? (
+        <SloganScene {...info} />
+      ) : (
+        <SonomaScene {...info} />
+      )}
       {saver && <div className={s.shield} aria-hidden />}
     </div>
   );
@@ -174,13 +188,15 @@ interface SceneInfo {
   entries: Entry[];
   saver: boolean;
   pet: ReactNode;
+  slogan: string;
+  scriptWeekday: boolean;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 // ------------------------------------------------------------------ A. Sonoma
 
-function SonomaScene({ now, name, stateText, music, entries, saver, pet, phase }: SceneInfo) {
+function SonomaScene({ now, name, stateText, music, entries, saver, pet, phase, scriptWeekday }: SceneInfo) {
   const time = `${now.getHours()}:${pad(now.getMinutes())}`;
   return (
     <>
@@ -200,6 +216,7 @@ function SonomaScene({ now, name, stateText, music, entries, saver, pet, phase }
           {now.getMonth() + 1}月{now.getDate()}日 {WEEKDAYS[now.getDay()]}
         </div>
         <div className={s.lockTime}>{time}</div>
+        {scriptWeekday && <div className={s.script}>{WEEKDAYS_SCRIPT[now.getDay()]}</div>}
       </header>
 
       <div className={s.halo} aria-hidden>
@@ -209,25 +226,16 @@ function SonomaScene({ now, name, stateText, music, entries, saver, pet, phase }
         {pet}
       </div>
 
-      <div className={s.lockSub}>
-        {music ? (
-          <>
-            <span className={s.eq} aria-hidden>
-              <i />
-              <i />
-              <i />
-            </span>
-            {music.title ?? "正在播放"}
-            {music.artist ? <span className={s.dim}> · {music.artist}</span> : null}
-          </>
-        ) : (
-          <>
-            {PHASE_LABEL[phase]} · {name}
-            {stateText}
-          </>
-        )}
-      </div>
+      {music ? (
+        <NowPlaying music={music} className={s.nowPlaying} />
+      ) : (
+        <div className={s.lockSub}>
+          {PHASE_LABEL[phase]} · {name}
+          {stateText}
+        </div>
+      )}
 
+      <p className={s.quote}>{dailyQuote(now)}</p>
       {!saver && (
         <nav className={s.dock}>
           {entries.map((e) => (
@@ -271,7 +279,7 @@ function PosterScene({ now, name, stateText, music, done, entries, saver, pet }:
         {pad(now.getMinutes())}
       </div>
 
-      <div className={s.pPetSlot} data-pet-slot="poster">
+      <div className={s.pPetSlot} data-pet-slot="poster" data-framing="bust">
         {pet}
       </div>
 
@@ -327,6 +335,92 @@ function PosterScene({ now, name, stateText, music, done, entries, saver, pet }:
 
       <div className={s.grain} aria-hidden />
       <div className={s.pVignette} aria-hidden />
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ C. 海 (photographic sea)
+
+const SEA_PHASES: Phase[] = ["dawn", "day", "dusk", "night"];
+
+/** Round quick-launch dots (desktop mode only). */
+function Dots({ entries, className }: { entries: Entry[]; className: string }) {
+  return (
+    <nav className={className}>
+      {entries.map((e) => (
+        <button key={e.id} className={s.dot} onClick={e.run} title={e.label} aria-label={e.label}>
+          <svg viewBox="0 0 24 24" aria-hidden>
+            {ICONS[e.id]}
+          </svg>
+          {e.badge ? <span className={s.dotBadge}>{e.badge}</span> : null}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/**
+ * 「海」: a vast open ocean seen from high up, an empty diving platform jutting over the water —
+ * 小喵 stands at its edge. Four photos (清晨/白天/黄昏/夜晚) crossfade with the clock, tinted by
+ * the time palette; thin big clock, almost no text, film grain.
+ */
+function SeaScene({ now, music, entries, saver, pet, scriptWeekday }: SceneInfo) {
+  const w = phaseWeights(minuteOfDay(now));
+  const time = `${now.getHours()}:${pad(now.getMinutes())}`;
+  return (
+    <>
+      {SEA_PHASES.map((p) => (
+        <div
+          key={p}
+          className={s.seaPhoto}
+          style={{ backgroundImage: `url(/scenes/sea/sea-${p}.webp)`, opacity: w[p] }}
+          aria-hidden
+        />
+      ))}
+      <div className={s.seaTint} aria-hidden />
+      <header className={s.seaHead}>
+        <div className={s.seaGreet}>{greeting(now)}</div>
+        <div className={s.seaTime}>{time}</div>
+        {scriptWeekday && <div className={`${s.script} ${s.seaScript}`}>{WEEKDAYS_SCRIPT[now.getDay()]}</div>}
+        <div className={s.seaDate}>
+          {now.getFullYear()}.{pad(now.getMonth() + 1)}.{pad(now.getDate())}
+        </div>
+      </header>
+      <div className={s.seaPetSlot} data-pet-slot="sea">
+        {pet}
+      </div>
+      {music && <NowPlaying music={music} compact className={s.seaPlaying} />}
+      <p className={`${s.quote} ${s.seaQuote}`}>{dailyQuote(now)}</p>
+      {!saver && <Dots entries={entries} className={s.seaDots} />}
+      <div className={`${s.grain} ${s.grainSoft}`} aria-hidden />
+      <div className={s.seaVignette} aria-hidden />
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ D. 极简标语
+
+/** 极简标语: dark deep-ocean texture, one bold yellow slogan, 小喵 on the right. */
+function SloganScene({ now, music, entries, saver, pet, slogan }: SceneInfo) {
+  return (
+    <>
+      <div className={s.sloganBg} aria-hidden />
+      <div className={s.sloganTop}>
+        <span>
+          {pad(now.getHours())}:{pad(now.getMinutes())}
+        </span>
+        <span className={s.sloganDate}>
+          {MONTHS_EN[now.getMonth()]} {now.getDate()} · {WEEKDAYS_EN[now.getDay()]}
+        </span>
+      </div>
+      <h1 className={s.sloganText}>{slogan}</h1>
+      <div className={s.sloganPetSlot} data-pet-slot="slogan">
+        {pet}
+      </div>
+      {music && <NowPlaying music={music} compact className={s.sloganPlaying} />}
+      <p className={`${s.quote} ${s.sloganQuote}`}>{dailyQuote(now)}</p>
+      {!saver && <Dots entries={entries} className={s.sloganDots} />}
+      <div className={`${s.grain} ${s.grainSoft}`} aria-hidden />
     </>
   );
 }
