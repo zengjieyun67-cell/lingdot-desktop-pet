@@ -14,9 +14,11 @@ import type {
   ActivitySnapshot,
   AppSettings,
   ConnectionStatus,
+  Note,
   NotificationEventPayload,
   PersonaMemory,
 } from "../api/types";
+import { noteTitle, reminderSpoken } from "../notes/noteText";
 import { useVoice, voicePhaseLabel } from "../lib/voice";
 import { createRenderer, type Live2DPaths } from "./renderer/createRenderer";
 import { RadialMenu, radialProgress, type RadialAction } from "./RadialMenu";
@@ -46,6 +48,8 @@ interface Bubble {
   body?: string;
   notificationId?: string;
   url?: string | null;
+  /** 便签 reminder: clicking opens the note. */
+  noteId?: string;
 }
 
 /** What the renderer depends on: SVG vs Live2D + the two paths (auto → live2d alone does not remount). */
@@ -75,6 +79,8 @@ function personaSettings(s: AppSettings) {
  */
 export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" | "desktop"; quiet?: boolean } = {}) {
   const isDesktop = variant === "desktop";
+  const quietRef = useRef(quiet);
+  quietRef.current = quiet;
   const stageRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<PetRenderer | null>(null);
   const settingsRef = useRef<AppSettings | null>(null);
@@ -114,6 +120,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
     lastShakeAt: 0,
   });
   const [dial, setDial] = useState<{ progress: number; label: string } | null>(null);
+  const [dropHover, setDropHover] = useState(false);
 
   /** Recompute the single state 小喵 shows (task mood vs. music / stretch / nap). */
   const refreshDisplay = useCallback(() => {
@@ -367,6 +374,18 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
           if (st.connected && was === false) speak(persona.say("reconnected"));
         }),
         await on("tasks-changed", () => void checkRunningTasks()),
+        await on<Note>("note-reminder", (n) => {
+          const st = settingsRef.current;
+          // one pet answers: the floating one in 桌宠模式, the scene one in 桌面模式 (never the screen saver)
+          if (quietRef.current || (st?.displayMode === "desktop") !== isDesktop) return;
+          rendererRef.current?.react?.("head_pat");
+          applyEmotion("happy");
+          showBubble({ line: `${st?.userTitle ?? "主人"}，便签提醒：${noteTitle(n.content, 18)}`, noteId: n.id }, NOTIFY_BUBBLE_MS);
+          // short spoken line, same rule as touch voice (「摸摸时说话」 off = silent, never over another line)
+          if (isTauri() && (st?.touchVoice ?? true) && (voicePhaseRef.current ?? "idle") === "idle") {
+            void api.voiceSpeak(reminderSpoken()).catch(() => undefined);
+          }
+        }),
         await on<PersonaMemory>("persona-memory", (m) => {
           persona.affinity = m.affinity;
           persona.familiarity = m.familiarity;
@@ -474,6 +493,11 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
 
   const onDialAction = (a: RadialAction) => {
     setDial(null);
+    if (a === "notes") {
+      void api.newQuickNote().catch(() => undefined);
+      showBubble({ line: "要记什么？写在便签上吧～" }, 3200);
+      return;
+    }
     if (a === "music") {
       const m = activityRef.current.music;
       showBubble({ line: m ? `正在听《${m.title ?? "这首歌"}》${m.artist ? ` — ${m.artist}` : ""}，主人品味不错嘛～` : "现在没有在放歌哦，放一首给我听听？" }, LINE_BUBBLE_MS);
@@ -486,7 +510,8 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
     e.stopPropagation();
     if (!bubble) return;
     setBubble(null);
-    if (bubble.notificationId && bubble.url) void api.openNotification(bubble.notificationId);
+    if (bubble.noteId) void api.popOutNote(bubble.noteId).catch(() => undefined);
+    else if (bubble.notificationId && bubble.url) void api.openNotification(bubble.notificationId);
     else if (bubble.notificationId) void api.showPanel("notifications");
   };
 
@@ -502,7 +527,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
   return (
     <div
       ref={wrapRef}
-      className={`${styles.wrap} ${animations ? "" : styles.still} ${isDesktop ? styles.desktop : ""}`}
+      className={`${styles.wrap} ${animations ? "" : styles.still} ${isDesktop ? styles.desktop : ""} ${dropHover ? styles.dropHover : ""}`}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -516,16 +541,38 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
         patRef.current.reset();
       }}
       onContextMenu={onContextMenu}
+      onDragOver={(e) => {
+        if (quiet || !e.dataTransfer.types.includes("text/plain")) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setDropHover(true);
+      }}
+      onDragLeave={() => setDropHover(false)}
+      onDrop={(e) => {
+        setDropHover(false);
+        if (quiet) return;
+        const text = (e.dataTransfer.getData("text/plain") || "").trim();
+        if (!text) return;
+        e.preventDefault();
+        void api
+          .createNote({ content: text.slice(0, 4000) })
+          .then(() => {
+            touchReact("head_pat");
+            showBubble({ line: "记下来啦，贴在便签里了～" }, LINE_BUBBLE_MS);
+          })
+          .catch(() => showBubble({ line: "呜…没记住，再拖一次？" }, 3200));
+      }}
       title={isDesktop ? hint.replace(" · 拖动移动", "").replace(" · ⌘/Ctrl+滚轮调大小", "") : hint}
     >
       {bubble && !quiet && !dial && (
         <div
-          className={`${styles.bubble} ${bubble.notificationId ? "" : styles.bubbleLine}`}
+          className={`${styles.bubble} ${bubble.notificationId || bubble.noteId ? "" : styles.bubbleLine}`}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={openBubble}
-          role={bubble.notificationId ? "button" : "status"}
+          role={bubble.notificationId || bubble.noteId ? "button" : "status"}
         >
           {bubble.line && <span className={styles.bubbleSay}>{bubble.line}</span>}
+          {bubble.noteId && <span className={styles.bubbleHint}>点我打开便签</span>}
           {bubble.notificationId && (!bubble.line || bubble.title) && (
             <>
               {!bubble.line && <span className={styles.bubbleTitle}>{bubble.title}</span>}
