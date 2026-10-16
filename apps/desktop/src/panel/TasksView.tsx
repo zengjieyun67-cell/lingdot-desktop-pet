@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { TASK_STATUSES, type Site, type Task, type TaskDetail, type TaskStatus } from "@desktop-pet/shared";
-import { api } from "../api/client";
-import type { TaskInput } from "../api/types";
+import { api, on } from "../api/client";
+import { NowPlaying } from "../ui/NowPlaying";
+import type { ActivitySnapshot, TaskInput } from "../api/types";
 import { usePanel } from "./PanelApp";
 import { Button, Empty, Field, inputClass, More, selectClass, Spinner, StatusBadge } from "./ui";
 import { ExtensionGuide } from "./ExtensionGuide";
@@ -19,6 +20,22 @@ import s from "./Panel.module.css";
 export function SiteIcon({ site }: { site?: Site | null }) {
   if (!site) return <span className={s.siteIcon}>🗂️</span>;
   return <span className={s.siteIcon}>{isImageIcon(site.icon) ? <img src={site.icon} alt="" /> : site.icon || "🌐"}</span>;
+}
+
+/** What is playing right now (music detection), live-updated. */
+function useNowPlaying() {
+  const [snap, setSnap] = useState<ActivitySnapshot | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let off: (() => void) | undefined;
+    void api.getActivity().then((a) => alive && setSnap(a)).catch(() => undefined);
+    void on<ActivitySnapshot>("pet-activity", (a) => setSnap(a)).then((u) => (alive ? (off = u) : u())).catch(() => undefined);
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, []);
+  return snap?.kind === "listening_music" ? snap.music : null;
 }
 
 export function TasksView() {
@@ -43,12 +60,15 @@ export function TasksView() {
     void load();
   }, [load, tasksVersion]);
 
+  const music = useNowPlaying();
+
   if (selected) return <TaskDetailView id={selected} onBack={() => setSelected(null)} />;
 
   const siteOf = (id: string | null) => sites.find((x) => x.id === id);
 
   return (
     <div>
+      {music && <NowPlaying music={music} onLight compact className={s.panelPlaying} />}
       <ExtensionGuide />
       <div className={s.sectionTitle}>
         <span>最近的任务</span>
