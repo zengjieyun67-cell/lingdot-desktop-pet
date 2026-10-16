@@ -133,11 +133,12 @@ pub fn run() {
             *app.state::<TrayModeItem>().0.lock().unwrap() = Some(mode_item.clone());
             let toggle = MenuItem::with_id(app, "toggle_pet", "显示 / 隐藏桌宠", true, None::<&str>)?;
             let panel = MenuItem::with_id(app, "open_panel", "打开面板", true, None::<&str>)?;
+            let saver = MenuItem::with_id(app, "screensaver", "进入屏保", true, None::<&str>)?;
             let reset = MenuItem::with_id(app, "reset_position", "重置桌宠位置", true, None::<&str>)?;
             let anim = MenuItem::with_id(app, "toggle_animations", "开关动画", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &mode_item, &panel, &reset, &anim, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&toggle, &mode_item, &saver, &panel, &reset, &anim, &sep, &quit])?;
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("lingdot-desktop-pet")
                 .menu(&menu)
@@ -146,6 +147,7 @@ pub fn run() {
                     "toggle_pet" => windows::toggle_pet(app),
                     "toggle_mode" => commands::toggle_display_mode(app),
                     "open_panel" => windows::show_panel(app),
+                    "screensaver" => windows::show_screensaver(app),
                     "reset_position" => windows::reset_pet_position(app),
                     "toggle_animations" => commands::toggle_animations(app),
                     "quit" => app.exit(0),
@@ -273,6 +275,8 @@ pub fn run() {
             persona_cmds::chat_send,
             persona_cmds::chat_test,
             commands::set_display_mode,
+            commands::start_screensaver,
+            commands::exit_screensaver,
             voice::voice_status,
             voice::voice_ptt_start,
             voice::voice_ptt_stop,
