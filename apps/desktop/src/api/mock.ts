@@ -60,7 +60,23 @@ function seed(): MockDb {
   };
 }
 
+/** Browser preview only: ?l2d=/live2d/models/x/x.model3.json previews a Live2D model (bundled core). */
+function previewOverrides(db: MockDb): MockDb {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const m = q.get("l2d");
+    if (m) db.settings = { ...db.settings, rendererMode: "live2d", live2dModelPath: m, live2dCorePath: "" };
+  } catch {
+    /* ignore */
+  }
+  return db;
+}
+
 function load(): MockDb {
+  return previewOverrides(loadRaw());
+}
+
+function loadRaw(): MockDb {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -297,6 +313,14 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
     }
     case "get_pet_mood":
       return done(mood(db));
+    case "scan_and_import_live2d":
+    case "import_live2d_folder":
+      return done({
+        modelPath: null, corePath: null, modelName: null, modelSource: null, coreSource: null, alreadyImported: false,
+        message: "浏览器预览里无法读取本机文件：在 Mac 上的应用里点一键导入",
+      });
+    case "pick_live2d_folder":
+      return done(null);
     case "get_live2d_info":
       return done({ modelsDir: "~/Library/Application Support/com.desktoppet.app/live2d" });
     case "get_persona_memory":
