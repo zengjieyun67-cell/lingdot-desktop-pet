@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api, isTauri } from "../api/client";
-import type { VoiceInfo } from "../api/types";
+import { api, errorText, isTauri } from "../api/client";
+import type { DesktopFolder, VoiceInfo } from "../api/types";
 import { browserVoiceSupported } from "../lib/voice";
 import { usePanel } from "./PanelApp";
 import { Button, inputClass, selectClass, Toggle } from "./ui";
@@ -257,6 +257,13 @@ export function ModeSettings() {
             ))}
           </select>
         </Row>
+        <Row title="屏保显示便签" desc="屏保上很淡地显示最多 2 张置顶便签；默认关闭，保持干净">
+          <Toggle checked={settings.screensaverNotes} onChange={(v) => saveSettings({ screensaverNotes: v })} />
+        </Row>
+        <Row title="桌面天气" desc="用 IP 粗略定位查天气（ipapi.co + open-meteo，免 Key）；关掉就只显示日期">
+          <Toggle checked={settings.desktopWeather} onChange={(v) => saveSettings({ desktopWeather: v })} />
+        </Row>
+        <DesktopFoldersRow />
         <Row title="屏保模式" desc="只看不点、信息更少；托盘菜单里也有「进入屏保」">
           <Button small onClick={() => void api.startScreensaver().catch(() => undefined)}>
             现在进入
@@ -277,5 +284,37 @@ export function ModeSettings() {
         </Row>
       </div>
     </>
+  );
+}
+
+/** 桌面模式 folder shortcuts: built-ins + up to 8 of the user's own. */
+function DesktopFoldersRow() {
+  const [list, setList] = useState<DesktopFolder[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    void api.listDesktopFolders().then(setList).catch(() => setList([]));
+  }, []);
+  const custom = (list ?? []).filter((f) => f.kind === "custom");
+  return (
+    <div className={`${s.row} ${s.rowStack}`}>
+      <div className={s.rowTitle}>桌面文件夹</div>
+      <div className={s.rowDesc}>下载 / 文稿 / 桌面 / 应用程序 已经在桌面上；再加几个常用的（最多 8 个），点一下用访达打开</div>
+      {custom.map((f) => (
+        <div key={f.path} className={s.inline} style={{ justifyContent: "space-between" }}>
+          <span title={f.path} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            📁 {f.name}
+          </span>
+          <Button small variant="ghost" onClick={() => void api.removeDesktopFolder(f.path).then(setList).catch((e) => setErr(errorText(e)))}>
+            移除
+          </Button>
+        </div>
+      ))}
+      <div className={s.inline}>
+        <Button small disabled={custom.length >= 8} onClick={() => void api.addDesktopFolder().then(setList).catch((e) => setErr(errorText(e)))}>
+          ＋ 添加文件夹
+        </Button>
+        {err && <span style={{ color: "var(--red)", fontSize: 11 }}>{err}</span>}
+      </div>
+    </div>
   );
 }
