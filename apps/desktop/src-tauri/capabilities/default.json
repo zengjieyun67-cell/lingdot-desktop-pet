@@ -1,12 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capabilities for the pet, panel and desktop windows. App commands (commands.rs) are allowed by default; plugin access is limited to what the UI needs.",
+  "description": "Capabilities for the pet, panel, desktop, screensaver and floating 便签 (note-*) windows. App commands (commands.rs) are allowed by default; plugin access is limited to what the UI needs.",
   "windows": [
     "pet",
     "panel",
     "desktop",
-    "screensaver"
+    "screensaver",
+    "note-*"
   ],
   "permissions": [
     "core:default",
@@ -18,6 +19,11 @@
     "core:window:allow-set-position",
     "core:window:allow-outer-position",
     "core:window:allow-scale-factor",
-    "notification:default"
+    "notification:default",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-inner-size",
+    "core:window:allow-outer-size"
   ]
 }
