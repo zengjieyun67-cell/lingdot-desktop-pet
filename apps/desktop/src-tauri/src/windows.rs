@@ -348,3 +348,89 @@ fn set_desktop_level(_app: &AppHandle, win: &WebviewWindow, _interactive: bool) 
     // Elsewhere: best effort via the cross-platform "always on bottom".
     let _ = win.set_always_on_bottom(true);
 }
+
+// ------------------------------------------------------------ 屏保模式
+
+pub const SCREENSAVER_LABEL: &str = "screensaver";
+
+/// Full-screen, top-most scene (`#/screensaver`) on the screen the pet / desktop scene is on.
+/// Look only: the page calls `exit_screensaver` on the first mouse move / key press.
+pub fn show_screensaver(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(SCREENSAVER_LABEL) {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+    let anchor = app.get_webview_window(DESKTOP_LABEL).filter(|w| w.is_visible().unwrap_or(false)).or_else(|| pet(app));
+    let monitor = anchor
+        .as_ref()
+        .and_then(|w| w.current_monitor().ok().flatten())
+        .or_else(|| anchor.as_ref().and_then(|w| w.primary_monitor().ok().flatten()));
+    let (pos, size) = match &monitor {
+        Some(m) => (*m.position(), *m.size()),
+        None => (PhysicalPosition::new(0, 0), tauri::PhysicalSize::new(1440, 900)),
+    };
+    hide_panel(app);
+    let built = tauri::WebviewWindowBuilder::new(app, SCREENSAVER_LABEL, tauri::WebviewUrl::App("index.html#/screensaver".into()))
+        .title("lingdot 屏保")
+        .decorations(false)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .skip_taskbar(true)
+        .shadow(false)
+        .always_on_top(true)
+        .visible(false)
+        .focused(true)
+        .accept_first_mouse(true)
+        .build();
+    let Ok(win) = built else { return };
+    let _ = win.set_position(pos);
+    let _ = win.set_size(size);
+    set_screensaver_level(app, &win);
+    let _ = win.show();
+    let _ = win.set_focus();
+    let _ = win.set_cursor_visible(false);
+}
+
+pub fn exit_screensaver(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(SCREENSAVER_LABEL) {
+        let _ = w.set_cursor_visible(true);
+        let _ = w.destroy();
+    }
+}
+
+pub fn screensaver_open(app: &AppHandle) -> bool {
+    app.get_webview_window(SCREENSAVER_LABEL).is_some()
+}
+
+/// macOS: above the menu bar and Dock (NSScreenSaverWindowLevel = 1000), on every Space.
+#[cfg(target_os = "macos")]
+fn set_screensaver_level(app: &AppHandle, win: &WebviewWindow) {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    const NS_SCREEN_SAVER_WINDOW_LEVEL: isize = 1000;
+    const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
+    const STATIONARY: usize = 1 << 4;
+    const IGNORES_CYCLE: usize = 1 << 6;
+    let Ok(raw) = win.ns_window() else { return };
+    let addr = raw as usize;
+    let _ = app.run_on_main_thread(move || {
+        let ptr = addr as *mut std::ffi::c_void;
+        if ptr.is_null() {
+            return;
+        }
+        let behaviour: usize = CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE;
+        // SAFETY: `ptr` is the live NSWindow of this webview window, used on the main thread.
+        unsafe {
+            let obj: &AnyObject = &*(ptr as *const AnyObject);
+            let _: () = msg_send![obj, setLevel: NS_SCREEN_SAVER_WINDOW_LEVEL];
+            let _: () = msg_send![obj, setCollectionBehavior: behaviour];
+        }
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_screensaver_level(_app: &AppHandle, win: &WebviewWindow) {
+    let _ = win.set_fullscreen(true);
+}
