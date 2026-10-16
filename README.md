@@ -52,6 +52,8 @@
 
 ### 4. （可选）换成 Live2D 形象
 
+**用下载好的 .dmg（推荐）**：把模型文件夹（含 `.model3.json`）和官网的 `CubismSdkForWeb-*.zip` 放进「下载」文件夹，打开应用即可——启动时会自动在 下载 / 桌面 / 文稿 / `~/Live2D` / 以前的源码目录（`apps/desktop/public/live2d`）里找到并复制到 `~/Library/Application Support/com.desktoppet.app/live2d/`。没找到时去 设置 → 角色 点「一键导入我的 Live2D」或「选择模型文件夹」。
+
 Live2D 的 Core 和模型受版权保护，**本仓库不包含**，需要你自己下载：
 
 1. 在 [Live2D 官网](https://www.live2d.com/en/sdk/download/web/) 同意许可后下载 **Cubism SDK for Web** 的 ZIP。
