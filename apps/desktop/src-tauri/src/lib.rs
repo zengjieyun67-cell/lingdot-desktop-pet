@@ -1,6 +1,7 @@
 //! Tauri shell for the desktop pet. All business logic lives in `pet-core`;
 //! this crate wires it to windows, tray, notifications and IPC commands.
 
+mod live2d_cmds;
 mod activity_probe;
 mod commands;
 mod effects;
@@ -100,6 +101,9 @@ pub fn run() {
                 pending_panel_pos: Mutex::new(None),
                 panel_placed_at: Mutex::new(None),
             });
+
+            // ---- Live2D: find + import the user's own model when the configured one is missing
+            live2d_cmds::auto_import_on_startup(app.handle());
 
             // ---- local server (127.0.0.1 only)
             let handle = app.handle().clone();
@@ -263,6 +267,9 @@ pub fn run() {
             commands::complete_first_run,
             commands::test_notification,
             commands::get_live2d_info,
+            live2d_cmds::scan_and_import_live2d,
+            live2d_cmds::import_live2d_folder,
+            live2d_cmds::pick_live2d_folder,
             commands::quit_app,
             persona_cmds::get_persona_memory,
             persona_cmds::persona_interaction,
