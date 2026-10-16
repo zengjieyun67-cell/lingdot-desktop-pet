@@ -4,6 +4,7 @@ import { usePanel } from "./PanelApp";
 import { Button, inputClass, More, selectClass, Toggle } from "./ui";
 import { fullTime, relTime } from "./format";
 import { PersonaSettings } from "./PersonaSettings";
+import { Live2DImportCard, needsLive2DCard } from "./Live2DImport";
 import { ChatSettings } from "./ChatSettings";
 import { ModeSettings, VoiceSettings } from "./VoiceSettings";
 import { isGuideDismissed, pairingCode, setGuideDismissed } from "./ExtensionGuide";
@@ -160,11 +161,15 @@ export function SettingsView() {
 
       {section === "role" && (
         <>
+          {settings.rendererMode !== "svg" && needsLive2DCard(renderer?.status) && <Live2DImportCard prominent />}
           <div className={s.group}>
             <Row title="显示桌宠">
               <Toggle checked={settings.petVisible} onChange={(v) => saveSettings({ petVisible: v })} />
             </Row>
             <PetSizeControl />
+            <Row title="摸摸时说话" desc="摸头、戳她、拖动时偶尔用很短的一句话出声（文字气泡一直会有）；关掉就静音">
+              <Toggle checked={settings.touchVoice} onChange={(v) => saveSettings({ touchVoice: v })} />
+            </Row>
             <Row title="动画" desc="关闭后保持静止，更省电">
               <Toggle checked={settings.animationsEnabled} onChange={(v) => saveSettings({ animationsEnabled: v })} />
             </Row>
@@ -197,6 +202,7 @@ export function SettingsView() {
             )}
             <div className={`${s.row} ${s.rowStack}`}>
               <More label="Live2D 模型设置">
+                {!needsLive2DCard(renderer?.status) && <Live2DImportCard prominent={false} />}
                 <div className={s.rowTitle}>模型路径（.model3.json）</div>
                 <div className={s.rowDesc}>
                   绝对路径（推荐放在 {modelsDir || "应用数据目录/live2d"} 下）或打包内路径 /live2d/models/…
@@ -205,7 +211,7 @@ export function SettingsView() {
                   <input className={inputClass} style={{ flex: 1 }} value={modelPath} onChange={(e) => setModelPath(e.target.value)} placeholder="/Users/you/Live2D/neko/neko.model3.json" />
                 </div>
                 <div className={s.rowTitle} style={{ marginTop: 12 }}>Cubism Core 路径（可选）</div>
-                <div className={s.rowDesc}>留空则使用打包进应用的 /live2d/live2dcubismcore.min.js（见 setup-live2d.sh）</div>
+                <div className={s.rowDesc}>一键导入会自动填好；留空则使用打包进应用的 /live2d/live2dcubismcore.min.js（仅本地构建）</div>
                 <div className={s.inline}>
                   <input className={inputClass} style={{ flex: 1 }} value={corePath} onChange={(e) => setCorePath(e.target.value)} placeholder="/Users/you/Live2D/live2dcubismcore.min.js" />
                   <Button
