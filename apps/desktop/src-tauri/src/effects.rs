@@ -61,6 +61,7 @@ pub fn register_click_handler(app: &AppHandle) {
         let h = handle.clone();
         // Hop to the main thread for window / opener calls.
         let _ = handle.run_on_main_thread(move || match id {
+            Some(id) if id.starts_with("note:") => crate::notes_cmds::open_note_window(&h, &id[5..]),
             Some(id) => crate::commands::open_notification_by_id(&h, &id),
             None => crate::windows::show_panel_tab(&h, "notifications"),
         });
