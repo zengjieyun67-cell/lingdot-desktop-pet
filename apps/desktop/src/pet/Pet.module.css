@@ -144,3 +144,5 @@
 .wrap.desktop { position: absolute; overflow: visible; }
 .wrap.desktop:active { cursor: default; }
 .desktop .bubble { top: 8%; right: 86%; left: auto; width: 230px; font-size: 14px; }
+/* 杂志海报: the slot is a tall half-body crop, keep the bubble beside the face, off the headline numerals */
+:global([data-pet-slot="poster"]) .desktop .bubble { top: 33%; right: 74%; }
