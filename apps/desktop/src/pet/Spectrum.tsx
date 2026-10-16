@@ -1,6 +1,6 @@
 import styles from "./Spectrum.module.css";
 
-const BARS = 28;
+const BARS = 34;
 
 /** Deterministic pseudo-random bar profile (taller in the middle, like a music spectrum). */
 export function spectrumProfile(n = BARS): number[] {
