@@ -8,6 +8,7 @@
  */
 import { EMOTION_EXPRESSIONS, STATE_REGISTRY, type DisplayState, type Emotion, type PetMood } from "@desktop-pet/shared";
 import { normaliseLook, type PetRenderer } from "./PetRenderer";
+import { TOUCH_MOTIONS, type TouchKind } from "../touchReactions";
 
 declare global {
   interface Window {
@@ -81,6 +82,14 @@ export function patchRenderOrders(live2dModel: any): void {
       return fromDrawOrders();
     },
   });
+}
+
+/** Part of the model height shown in the half-body (bust) framing. */
+export const BUST_FRACTION = 0.58;
+
+/** Full body everywhere, except the magazine poster slot (`data-framing="bust"`) = half-body close-up. */
+export function live2dFraming(container: Element | null): "full" | "bust" {
+  return container?.closest?.('[data-framing="bust"]') ? "bust" : "full";
 }
 
 export class Live2DRenderer implements PetRenderer {
@@ -198,6 +207,17 @@ export class Live2DRenderer implements PetRenderer {
     const b = this.model.getLocalBounds?.() ?? { x: 0, y: 0, width: this.model.width, height: this.model.height };
     const bw = b.width || this.model.internalModel?.width || 1;
     const bh = b.height || this.model.internalModel?.height || 1;
+    const framing = live2dFraming(this.container);
+    if (framing === "bust") {
+      // 杂志海报: half-body close-up — the top ~58% of the model fills the visible part of the slot.
+      const top = this.container.getBoundingClientRect().top;
+      const visibleH = Math.max(1, Math.min(h, (window.innerHeight || h) - Math.max(0, top)));
+      const scale = Math.min(w / bw, visibleH / (bh * BUST_FRACTION));
+      this.model.scale.set(scale);
+      this.model.position.set(w / 2 - (b.x + bw / 2) * scale, visibleH * 0.03 - b.y * scale);
+      this.info = `模型 ${Math.round(bw)}×${Math.round(bh)}，半身特写，缩放 ${scale.toFixed(3)}，窗口 ${w}×${h}`;
+      return;
+    }
     const scale = Math.min(w / bw, h / bh) * 0.96;
     this.model.scale.set(scale);
     // centre horizontally, sit on the bottom edge
@@ -262,6 +282,18 @@ export class Live2DRenderer implements PetRenderer {
     if (!this.model || !this.animations) return;
     const group = pickName(this.motionGroups(), ["TapHead", "Tap", "tap_head", "TapBody"]);
     if (group) this.model.motion(group, undefined, 2);
+  }
+
+  /** Touch / drag reaction: expression + a short motion (FORCE priority so it shows right away). */
+  react(kind: TouchKind): void {
+    if (!this.model) return;
+    const cfg = TOUCH_MOTIONS[kind];
+    const expr = pickName(this.expressionNames(), cfg.expressions);
+    if (expr) this.model.expression(expr);
+    if (!this.animations) return;
+    const group = pickName(this.motionGroups(), cfg.motions);
+    if (group) this.model.motion(group, undefined, 3);
+    else this.poke();
   }
 
   /** Phase 2: ambient state -> try the registry's motion groups. Returns true if a motion played. */
