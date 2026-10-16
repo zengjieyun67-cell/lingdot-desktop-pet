@@ -1,0 +1,141 @@
+/* 桌面模式 widgets — transparent glass, 1–1.5px white line icons, labels beneath, soft glow on hover.
+   Placed around the edges; the centre belongs to the character (and to the sea's negative space). */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  color: #fff;
+}
+.layer > * { pointer-events: auto; }
+
+.line { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ------------------------------------------------------------ left column (Sonoma / 海) */
+.left {
+  position: absolute;
+  left: 3vw;
+  top: 4.4vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 214px;
+  max-height: calc(100vh - 4.4vh - 200px);
+  pointer-events: none;
+}
+.left > * { pointer-events: auto; }
+
+.card {
+  width: 214px;
+  padding: 14px 14px 12px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)), rgba(10, 20, 34, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 16px 34px rgba(6, 16, 30, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  text-shadow: 0 1px 6px rgba(6, 16, 30, 0.25);
+}
+.wxRow { display: flex; align-items: center; gap: 12px; }
+.wxIcon { width: 38px; height: 38px; stroke-width: 1.2; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35)); flex: none; }
+.wxDay { width: 38px; text-align: center; font-size: 30px; font-weight: 200; flex: none; }
+.wxMain { min-width: 0; }
+.wxTemp { font-size: 28px; font-weight: 250; line-height: 1; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 8px; }
+.wxText { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; opacity: 0.85; }
+.wxSub { font-size: 11px; margin-top: 4px; opacity: 0.8; letter-spacing: 0.02em; line-height: 1.35; }
+.calHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  opacity: 0.9;
+}
+.calTag { font-size: 8px; letter-spacing: 0.2em; opacity: 0.6; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 1px; text-align: center; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.calDow { font-size: 9px; opacity: 0.5; padding-bottom: 3px; }
+.calDay { height: 20px; line-height: 20px; opacity: 0.82; border-radius: 50%; }
+.calToday {
+  opacity: 1;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.2px rgba(255, 255, 255, 0.95), 0 0 10px rgba(255, 255, 255, 0.35);
+}
+.stats { display: flex; gap: 12px; margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, 0.22); font-size: 10.5px; opacity: 0.85; letter-spacing: 0.03em; }
+.stats > span { display: inline-flex; align-items: center; gap: 4px; }
+.statIcon { width: 15px; height: 15px; }
+.fill { fill: currentColor; stroke: none; opacity: 0.8; }
+
+/* ------------------------------------------------------------ folder shortcuts (line icons) */
+.folders {
+  position: absolute;
+  right: 3vw;
+  top: calc(4vh + 56px);
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(5, auto);
+  direction: rtl;           /* first column hugs the right edge, like Finder's desktop */
+  gap: 10px 8px;
+}
+.folder {
+  direction: ltr;
+  width: 76px;
+  padding: 6px 2px 5px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s var(--spring);
+}
+.folder:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+.folder:hover .folderIcon { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.75)) drop-shadow(0 2px 6px rgba(6, 16, 30, 0.25)); }
+.folder:active { transform: scale(0.95); }
+.folderIcon {
+  width: 46px;
+  height: 38px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1px rgba(6, 16, 30, 0.45)) drop-shadow(0 1px 5px rgba(6, 16, 30, 0.35));
+  transition: filter 0.2s ease;
+}
+.folderBack { fill: rgba(255, 255, 255, 0.07); }
+.folderLip { opacity: 0.7; }
+.folderLabel {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  max-width: 72px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 5px rgba(6, 16, 30, 0.55);
+}
+.folderMissing { opacity: 0.45; }
+
+/* ------------------------------------------------------------ per-style placement */
+.layer[data-style="sonoma"] .folders { top: 4.4vh; }
+/* 海: keep the pale sky empty — the folders sit on the water, under the horizon */
+.layer[data-style="sea"] .folders { top: 24vh; }
+.layer[data-style="poster"] { color: var(--p-ink, #1a1a1a); }
+.layer[data-style="poster"] .folders { top: 112px; right: 64px; color: var(--p-ink, #1a1a1a); }
+.layer[data-style="poster"] .folder { color: var(--p-ink, #1a1a1a); }
+.layer[data-style="poster"] .folderIcon { filter: none; }
+.layer[data-style="poster"] .folderLabel { text-shadow: none; }
+.layer[data-style="poster"] .folderBack { fill: rgba(0, 0, 0, 0.03); }
+.notesAlt { position: absolute; }
+.layer[data-style="poster"] .notesAlt { right: 52px; bottom: 210px; }
+.layer[data-style="slogan"] .notesAlt { left: 6vw; bottom: calc(4vh + 70px); flex-direction: row; align-items: flex-end; }
+
+/* screen saver: optional, very faint, bottom-left */
+.saverNotes { position: absolute; left: 3.4vw; bottom: 5vh; flex-direction: row; align-items: flex-end; }
+
