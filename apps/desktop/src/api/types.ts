@@ -73,6 +73,69 @@ export interface AppSettings {
   touchVoice: boolean;
   /** Auto-start the lingdot screen saver after N idle minutes (0 = never). */
   screensaverIdleMins: number;
+  /** 屏保显示便签: at most two pinned notes, very faint. */
+  screensaverNotes: boolean;
+  /** Extra folder shortcuts on the desktop (absolute paths). */
+  desktopFolders: string[];
+  /** Weather widget on the desktop (IP location + open-meteo). */
+  desktopWeather: boolean;
+}
+
+// ---------------------------------------------------------------- 便签
+
+export type NoteColor = "yellow" | "pink" | "mint" | "lavender" | "sky";
+export const NOTE_COLORS: NoteColor[] = ["yellow", "pink", "mint", "lavender", "sky"];
+
+export interface Note {
+  id: string;
+  content: string;
+  color: NoteColor;
+  pinned: boolean;
+  popped: boolean;
+  x: number | null;
+  y: number | null;
+  w: number;
+  h: number;
+  createdAt: number;
+  updatedAt: number;
+  remindAt: number | null;
+  reminded: boolean;
+  done: boolean;
+}
+
+export interface NoteInput {
+  content: string;
+  color?: NoteColor;
+  pinned?: boolean;
+  remindAt?: number | null;
+}
+
+/** Only the given keys change; `remindAt: null` clears the reminder. */
+export type NotePatch = Partial<Pick<Note, "content" | "color" | "pinned" | "done" | "remindAt">>;
+
+// ---------------------------------------------------------------- 桌面 widgets
+
+export interface DesktopFolder {
+  name: string;
+  path: string;
+  kind: "downloads" | "documents" | "desktop" | "applications" | "custom";
+  exists: boolean;
+}
+
+export interface Weather {
+  city: string;
+  tempC: number;
+  /** WMO weather code (open-meteo) */
+  code: number;
+  hiC: number | null;
+  loC: number | null;
+  fetchedAt: number;
+}
+
+export interface SystemStats {
+  battery: number | null;
+  charging: boolean;
+  cpuLoad: number | null;
 }
 
 export type DesktopStyle = "sonoma" | "poster" | "sea" | "slogan";
@@ -190,6 +253,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   desktopScriptWeekday: true,
   touchVoice: true,
   screensaverIdleMins: 0,
+  screensaverNotes: false,
+  desktopFolders: [],
+  desktopWeather: true,
 };
 
 export type { PersonaMemory, InteractionKind } from "@desktop-pet/shared";
