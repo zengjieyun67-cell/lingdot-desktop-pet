@@ -312,6 +312,7 @@ button.card:active { transform: scale(0.98); }
 .slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
 .presets { display: flex; gap: 8px; }
 .preset { flex: 1; }
+.presetsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .presetOn { background: var(--yellow-soft) !important; border-color: rgba(240, 190, 80, 0.55) !important; color: #8a5a12 !important; }
 
 /* ---------------------------------------------------------------- detail */
@@ -512,3 +513,127 @@ button.card:active { transform: scale(0.98); }
 .liveToggle input { accent-color: var(--accent-strong); }
 .voiceHint { font-size: 12px; color: var(--text-3); margin: 4px 2px 6px; }
 .linkBtn { border: none; background: none; color: var(--accent-strong); font-weight: 700; cursor: pointer; padding: 0 2px; font-size: 12px; }
+
+/* 一键导入 Live2D card */
+.l2dCard {
+  position: relative;
+  margin: 0 0 12px;
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  background: var(--card, rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+}
+.l2dCardHot {
+  background:
+    radial-gradient(120px 90px at 92% 0%, rgba(94, 242, 255, 0.45), transparent 70%),
+    radial-gradient(110px 80px at 0% 100%, rgba(255, 120, 210, 0.35), transparent 70%),
+    var(--card, rgba(255, 255, 255, 0.8));
+}
+.l2dTag {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.6;
+}
+.l2dTitle { font-size: 15px; font-weight: 750; margin: 6px 0 4px; text-shadow: 1px 0 rgba(255, 60, 170, 0.35), -1px 0 rgba(0, 200, 255, 0.35); }
+.l2dActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.l2dResult { margin-top: 10px; font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 12px; background: rgba(255, 180, 60, 0.14); }
+.l2dOk { background: rgba(80, 200, 120, 0.16); }
+.l2dSrc { opacity: 0.65; font-size: 11px; word-break: break-all; margin-top: 2px; }
+
+/* ================================================================
+   Y2K "interactive exhibition" layer (ref: light grey, neon blobs, numbered tags,
+   thin concentric rings, chromatic-offset headings). Overrides the pastel look above. */
+.shell {
+  counter-reset: sect;
+  background:
+    radial-gradient(150px 120px at 104% -4%, rgba(0, 207, 227, 0.5), transparent 70%),
+    radial-gradient(130px 110px at -6% 104%, rgba(255, 63, 164, 0.38), transparent 70%),
+    radial-gradient(70px 60px at 82% 101%, rgba(200, 245, 58, 0.55), transparent 70%),
+    var(--glass);
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+.shell::before {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -120px;
+  top: -130px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-radial-gradient(circle, transparent 0 15px, rgba(20, 24, 34, 0.09) 15px 16px);
+  -webkit-mask: radial-gradient(circle, #000 40%, transparent 72%);
+  mask: radial-gradient(circle, #000 40%, transparent 72%);
+}
+.shell::after {
+  content: "LINGDOT · DESKTOP EXHIBITION · NO.01";
+  position: absolute;
+  left: 20px;
+  top: 4px;
+  font-size: 7px;
+  letter-spacing: 0.22em;
+  color: var(--text-3);
+  pointer-events: none;
+  opacity: 0.8;
+}
+.title {
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  text-shadow: 1.4px 0 rgba(255, 63, 164, 0.55), -1.4px 0 rgba(0, 207, 227, 0.6);
+}
+.avatar {
+  background:
+    radial-gradient(circle at 30% 25%, #fff, transparent 45%),
+    linear-gradient(140deg, #6ff0ff, #ff8ad0 55%, #dcff6a);
+  box-shadow: 0 6px 14px rgba(0, 160, 200, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+.grip { background: rgba(20, 24, 34, 0.18); }
+.tabActive,
+.tabActive:hover {
+  background: #16181d;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(20, 24, 34, 0.25), 0 0 0 2px rgba(0, 207, 227, 0.35);
+}
+.subTabActive,
+.subTabActive:hover {
+  background: var(--lime);
+  color: #15171b;
+  border-color: rgba(20, 24, 34, 0.4);
+}
+.sectionTitle {
+  color: var(--text);
+  letter-spacing: 0.04em;
+  justify-content: flex-start;
+}
+.sectionTitle::before {
+  counter-increment: sect;
+  content: "A" counter(sect, decimal-leading-zero);
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #16181d;
+  background: #fff;
+  border: 1px solid #16181d;
+  box-shadow: 1.5px 1.5px 0 var(--cyan);
+}
+.group {
+  border-radius: 20px;
+  border-color: rgba(20, 24, 34, 0.08);
+  background: color-mix(in oklab, var(--glass-strong) 92%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  .sectionTitle::before { background: #16181d; color: #fff; border-color: #fff; }
+  .tabActive, .tabActive:hover { background: #f1f2f5; color: #16181d; }
+  .shell::before { background: repeating-radial-gradient(circle, transparent 0 15px, rgba(255, 255, 255, 0.08) 15px 16px); }
+}
+.sectionTitle > * + * { margin-left: auto; }
+.panelPlaying { width: 100%; margin: 0 0 12px; }
