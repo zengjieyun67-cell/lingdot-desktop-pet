@@ -3,7 +3,21 @@ import { api, isTauri } from "../api/client";
 import type { VoiceInfo } from "../api/types";
 import { browserVoiceSupported } from "../lib/voice";
 import { usePanel } from "./PanelApp";
-import { Button, selectClass, Toggle } from "./ui";
+import { Button, inputClass, selectClass, Toggle } from "./ui";
+import type { DesktopStyle } from "../api/types";
+
+const STYLE_OPTIONS: Array<{ id: DesktopStyle; label: string }> = [
+  { id: "sonoma", label: "🌌 Sonoma 极光" },
+  { id: "poster", label: "📰 杂志海报" },
+  { id: "sea", label: "🌊 海" },
+  { id: "slogan", label: "✦ 极简标语" },
+];
+const STYLE_DESC: Record<string, string> = {
+  sonoma: "Sonoma：超大细体时钟 + 流动极光，站在玻璃光晕前",
+  poster: "杂志海报：大标题排版 + 胶片颗粒，正在听的歌当副标题，人物半身特写",
+  sea: "海：从高处看的辽阔深海，一块跳台伸向海面，她就站在跳台边上；细体大时钟，几乎没有字",
+  slogan: "极简标语：深色海面纹理 + 一句加粗的黄色标语（可以改成你想说的话）",
+};
 import s from "./Panel.module.css";
 
 function Row({ title, desc, children }: { title: string; desc?: ReactNode; children: ReactNode }) {
@@ -147,6 +161,7 @@ export function VoiceSettings() {
 /** 设置 → 通用: 桌面模式 / 桌宠模式 + 听歌 / 发呆状态. */
 export function ModeSettings() {
   const { settings, saveSettings } = usePanel();
+  const [slogan, setSlogan] = useState(settings.desktopSlogan);
   const setMode = async (mode: "pet" | "desktop") => {
     if (mode === settings.displayMode) return;
     try {
@@ -190,21 +205,44 @@ export function ModeSettings() {
           <div className={s.rowLabel}>
             <div className={s.rowTitle}>风格</div>
             <div className={s.rowDesc}>
-              {settings.desktopStyle === "poster"
-                ? "杂志海报：大标题排版 + 胶片颗粒，正在听的歌当副标题，人物半身特写"
-                : "Sonoma：超大细体时钟 + 流动极光，站在玻璃光晕前"}
+              {STYLE_DESC[settings.desktopStyle] ?? STYLE_DESC.sonoma}
               。颜色会跟着清晨、白天、黄昏、夜晚慢慢变。
             </div>
           </div>
-          <div className={s.presets}>
-            <Button small className={`${s.preset} ${settings.desktopStyle !== "poster" ? s.presetOn : ""}`} onClick={() => saveSettings({ desktopStyle: "sonoma" })}>
-              🌌 Sonoma 极光
-            </Button>
-            <Button small className={`${s.preset} ${settings.desktopStyle === "poster" ? s.presetOn : ""}`} onClick={() => saveSettings({ desktopStyle: "poster" })}>
-              📰 杂志海报
-            </Button>
+          <div className={s.presetsGrid}>
+            {STYLE_OPTIONS.map((o) => (
+              <Button
+                key={o.id}
+                small
+                className={`${s.preset} ${settings.desktopStyle === o.id ? s.presetOn : ""}`}
+                onClick={() => saveSettings({ desktopStyle: o.id })}
+              >
+                {o.label}
+              </Button>
+            ))}
           </div>
         </div>
+        {settings.desktopStyle === "slogan" && (
+          <div className={`${s.row} ${s.rowStack}`}>
+            <div className={s.rowTitle}>标语</div>
+            <div className={s.inline}>
+              <input
+                className={inputClass}
+                style={{ flex: 1 }}
+                value={slogan}
+                maxLength={40}
+                onChange={(e) => setSlogan(e.target.value)}
+                placeholder="今天也要元气满满."
+              />
+              <Button small variant="primary" disabled={slogan.trim() === settings.desktopSlogan} onClick={() => saveSettings({ desktopSlogan: slogan.trim() || "今天也要元气满满." })}>
+                应用
+              </Button>
+            </div>
+          </div>
+        )}
+        <Row title="手写星期" desc="在时钟上叠一行花体 Friday（Sonoma / 海）">
+          <Toggle checked={settings.desktopScriptWeekday} onChange={(v) => saveSettings({ desktopScriptWeekday: v })} />
+        </Row>
         <Row title="自动进入屏保" desc="电脑闲置这么久后自动出现；动一下鼠标或按任意键退出">
           <select
             className={selectClass}
