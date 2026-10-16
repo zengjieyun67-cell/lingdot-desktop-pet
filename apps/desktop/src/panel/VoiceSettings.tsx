@@ -164,7 +164,7 @@ export function ModeSettings() {
             <div className={s.rowTitle}>模式</div>
             <div className={s.rowDesc}>
               {settings.displayMode === "desktop"
-                ? `桌面模式：黄色小房间铺满桌面，${settings.petName}住在里面，窗口都在它上面`
+                ? `桌面模式：${settings.petName}和时钟铺满桌面当壁纸，窗口都在它上面`
                 : `桌宠模式：${settings.petName}浮在所有窗口上面，可以拖来拖去`}
             </div>
           </div>
@@ -182,6 +182,48 @@ export function ModeSettings() {
             <Toggle checked={settings.desktopInteractive} onChange={(v) => saveSettings({ desktopInteractive: v })} />
           </Row>
         )}
+      </div>
+
+      <div className={s.sectionTitle}>桌面风格 · 屏保</div>
+      <div className={s.group}>
+        <div className={`${s.row} ${s.rowStack}`}>
+          <div className={s.rowLabel}>
+            <div className={s.rowTitle}>风格</div>
+            <div className={s.rowDesc}>
+              {settings.desktopStyle === "poster"
+                ? "杂志海报：大标题排版 + 胶片颗粒，正在听的歌当副标题，人物半身特写"
+                : "Sonoma：超大细体时钟 + 流动极光，站在玻璃光晕前"}
+              。颜色会跟着清晨、白天、黄昏、夜晚慢慢变。
+            </div>
+          </div>
+          <div className={s.presets}>
+            <Button small className={`${s.preset} ${settings.desktopStyle !== "poster" ? s.presetOn : ""}`} onClick={() => saveSettings({ desktopStyle: "sonoma" })}>
+              🌌 Sonoma 极光
+            </Button>
+            <Button small className={`${s.preset} ${settings.desktopStyle === "poster" ? s.presetOn : ""}`} onClick={() => saveSettings({ desktopStyle: "poster" })}>
+              📰 杂志海报
+            </Button>
+          </div>
+        </div>
+        <Row title="自动进入屏保" desc="电脑闲置这么久后自动出现；动一下鼠标或按任意键退出">
+          <select
+            className={selectClass}
+            value={settings.screensaverIdleMins}
+            onChange={(e) => saveSettings({ screensaverIdleMins: Number(e.target.value) })}
+            aria-label="自动进入屏保"
+          >
+            {[0, 3, 5, 10, 15, 30].map((m) => (
+              <option key={m} value={m}>
+                {m === 0 ? "不自动" : `${m} 分钟`}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row title="屏保模式" desc="只看不点、信息更少；托盘菜单里也有「进入屏保」">
+          <Button small onClick={() => void api.startScreensaver().catch(() => undefined)}>
+            现在进入
+          </Button>
+        </Row>
       </div>
 
       <div className={s.sectionTitle}>小喵的状态</div>
