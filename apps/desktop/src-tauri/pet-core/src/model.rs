@@ -278,6 +278,12 @@ pub struct AppSettings {
     pub desktop_interactive: bool,
     /// Look of 桌面模式 + 屏保模式: sonoma (aurora + thin clock) | poster (magazine poster).
     pub desktop_style: String,
+    /// 极简标语 style: the one bold line (user editable).
+    pub desktop_slogan: String,
+    /// Elegant script weekday ("Friday") overlapping the clock.
+    pub desktop_script_weekday: bool,
+    /// Touch / drag reactions may be spoken aloud (short lines via `say`).
+    pub touch_voice: bool,
     /// Start the lingdot screen saver after this many idle minutes (0 = never).
     pub screensaver_idle_mins: u32,
 }
@@ -343,6 +349,9 @@ impl Default for AppSettings {
             display_mode: "pet".into(),
             desktop_interactive: false,
             desktop_style: "sonoma".into(),
+            desktop_slogan: "今天也要元气满满.".into(),
+            desktop_script_weekday: true,
+            touch_voice: true,
             screensaver_idle_mins: 0,
         }
     }
@@ -405,9 +414,10 @@ impl AppSettings {
         if !["pet", "desktop"].contains(&self.display_mode.as_str()) {
             self.display_mode = "pet".into();
         }
-        if !["sonoma", "poster"].contains(&self.desktop_style.as_str()) {
+        if !["sonoma", "poster", "sea", "slogan"].contains(&self.desktop_style.as_str()) {
             self.desktop_style = "sonoma".into();
         }
+        self.desktop_slogan = self.desktop_slogan.chars().filter(|c| !c.is_control()).take(40).collect();
         self.screensaver_idle_mins = self.screensaver_idle_mins.min(240);
         self
     }
