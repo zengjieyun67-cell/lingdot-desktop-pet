@@ -257,6 +257,17 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> CmdResult<AppSettings> 
     switch_display_mode(&app, &mode)
 }
 
+/// 屏保模式: full-screen look-only scene; the page exits on mouse move / key press.
+#[tauri::command]
+pub fn start_screensaver(app: AppHandle) {
+    windows::show_screensaver(&app);
+}
+
+#[tauri::command]
+pub fn exit_screensaver(app: AppHandle) {
+    windows::exit_screensaver(&app);
+}
+
 /// Tray: flip between 桌宠模式 and 桌面模式.
 pub fn toggle_display_mode(app: &AppHandle) {
     let cur = app.state::<AppState>().engine.db().get_settings().map(|s| s.display_mode).unwrap_or_default();
