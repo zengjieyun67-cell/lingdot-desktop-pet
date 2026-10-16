@@ -1,0 +1,138 @@
+/* Radial glass dial (ref: circular control with lavender center + yellow arc + ring pills). */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+.dial {
+  --size: min(92%, 92vw, 300px);
+  position: relative;
+  width: var(--size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.0) 0 31%, rgba(255, 255, 255, 0.55) 31.5% 100%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.92), rgba(236, 234, 246, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 18px 40px rgba(60, 50, 110, 0.22),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -6px 18px rgba(150, 140, 200, 0.18);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  animation: dialIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  container-type: inline-size;
+}
+@keyframes dialIn {
+  from { transform: scale(0.6) rotate(-25deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.ring {
+  position: absolute;
+  inset: 16%;
+  width: 68%;
+  height: 68%;
+  pointer-events: none;
+}
+.track {
+  fill: none;
+  stroke: rgba(120, 110, 170, 0.12);
+  stroke-width: 5;
+}
+.arc {
+  fill: none;
+  stroke: #f4cf5d;
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+  filter: drop-shadow(0 0 3px rgba(244, 207, 93, 0.6));
+}
+.listening .arc { animation: arcPulse 1s ease-in-out infinite; stroke: #ffb648; }
+@keyframes arcPulse { 50% { stroke-width: 7.5; opacity: 0.75; } }
+
+.mic {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #3b3570;
+  background: radial-gradient(circle at 35% 30%, #efe9ff, #d5cbff 60%, #c2b5fb);
+  box-shadow: 0 8px 20px rgba(120, 100, 220, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.8);
+  transition: transform 0.15s ease;
+}
+.mic:hover { transform: translate(-50%, -50%) scale(1.05); }
+.mic:active, .listening .mic { transform: translate(-50%, -50%) scale(0.95); background: radial-gradient(circle at 35% 30%, #fff1d6, #ffd98a 60%, #ffc35c); }
+.mic svg { width: 42%; height: 42%; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+.mic svg rect { fill: currentColor; stroke: none; }
+
+.pill {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: max(3px, 2.2cqi) max(6px, 3.6cqi);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(228, 224, 244, 0.92);
+  color: #2f2a55;
+  font-size: max(10px, 5.4cqi);
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(70, 60, 130, 0.14);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.pill:hover { background: #fff; transform: translate(-50%, -50%) scale(1.07); }
+.pillIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45em;
+  height: 1.45em;
+  border-radius: 50%;
+  background: #3b3570;
+  color: #fff;
+  font-size: 0.78em;
+}
+
+.lights {
+  position: absolute;
+  left: 50%;
+  top: 5.5%;
+  display: flex;
+  gap: 4px;
+  transform: translateX(-50%);
+}
+.lights > * {
+  width: max(8px, 4cqi);
+  height: max(8px, 4cqi);
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  display: block;
+}
+.lightRed { background: #ff5f57; cursor: pointer; }
+.lightYellow { background: #febc2e; }
+.lightGreen { background: #28c840; }
+
+.caption {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  transform: translateX(-50%);
+  font-size: max(9px, 4.4cqi);
+  color: #6b6590;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
