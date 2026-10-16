@@ -78,15 +78,17 @@ pub async fn import_live2d_folder(app: AppHandle, path: String) -> Result<Import
 /// 选择模型文件夹: native macOS folder picker (osascript, no extra plugin). None = cancelled.
 #[tauri::command]
 pub async fn pick_live2d_folder() -> Result<Option<String>, String> {
+    choose_folder("选择包含 .model3.json 的 Live2D 模型文件夹（也可以选放着 CubismSdkForWeb zip 的文件夹）").await
+}
+
+/// Native "choose folder" dialog (macOS, via osascript). `Ok(None)` when cancelled.
+pub async fn choose_folder(prompt: &str) -> Result<Option<String>, String> {
     #[cfg(target_os = "macos")]
     {
-        let out = tauri::async_runtime::spawn_blocking(|| {
-            std::process::Command::new("/usr/bin/osascript")
-                .args([
-                    "-e",
-                    "POSIX path of (choose folder with prompt \"选择包含 .model3.json 的 Live2D 模型文件夹（也可以选放着 CubismSdkForWeb zip 的文件夹）\")",
-                ])
-                .output()
+        let prompt = prompt.replace(['"', '\\'], "");
+        let script = format!("POSIX path of (choose folder with prompt \"{prompt}\")");
+        let out = tauri::async_runtime::spawn_blocking(move || {
+            std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).output()
         })
         .await
         .map_err(|e| e.to_string())?
@@ -99,6 +101,7 @@ pub async fn pick_live2d_folder() -> Result<Option<String>, String> {
     }
     #[cfg(not(target_os = "macos"))]
     {
+        let _ = prompt;
         Err("文件夹选择器仅支持 macOS，请在下方输入文件夹路径".into())
     }
 }
