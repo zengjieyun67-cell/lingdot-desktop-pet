@@ -65,11 +65,29 @@ export interface AppSettings {
   desktopInteractive: boolean;
   /** Look of 桌面模式 + 屏保模式 */
   desktopStyle: DesktopStyle;
+  /** 极简标语 style: the bold line. */
+  desktopSlogan: string;
+  /** Script weekday ("Friday") over the clock. */
+  desktopScriptWeekday: boolean;
+  /** Touch / drag reactions may be spoken aloud (short lines via macOS say). */
+  touchVoice: boolean;
   /** Auto-start the lingdot screen saver after N idle minutes (0 = never). */
   screensaverIdleMins: number;
 }
 
-export type DesktopStyle = "sonoma" | "poster";
+export type DesktopStyle = "sonoma" | "poster" | "sea" | "slogan";
+export const DESKTOP_STYLES: DesktopStyle[] = ["sonoma", "poster", "sea", "slogan"];
+
+/** Result of 一键导入我的 Live2D (pet-core live2d_scan::ImportOutcome). */
+export interface Live2DImport {
+  modelPath: string | null;
+  corePath: string | null;
+  modelName: string | null;
+  modelSource: string | null;
+  coreSource: string | null;
+  alreadyImported: boolean;
+  message: string;
+}
 
 export type DisplayMode = "pet" | "desktop";
 
@@ -168,6 +186,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   displayMode: "pet",
   desktopInteractive: false,
   desktopStyle: "sonoma",
+  desktopSlogan: "今天也要元气满满.",
+  desktopScriptWeekday: true,
+  touchVoice: true,
   screensaverIdleMins: 0,
 };
 
