@@ -6,7 +6,7 @@
 import type { PetMood, Site, Task, TaskDetail, TaskStatus, NotificationRecord } from "@desktop-pet/shared";
 import type { InteractionKind, PersonaMemory } from "@desktop-pet/shared";
 import { localDay } from "@desktop-pet/shared";
-import type { ActivitySnapshot, AppSettings, Bootstrap, ChatMessage, ConnectionInfo, DisplayMode, SiteInput, TaskFilter, TaskInput, VoiceInfo, VoiceStatus } from "./types";
+import type { ActivitySnapshot, AppSettings, Live2DImport, Bootstrap, ChatMessage, ConnectionInfo, DisplayMode, SiteInput, TaskFilter, TaskInput, VoiceInfo, VoiceStatus } from "./types";
 import { mockInvoke, mockListen } from "./mock";
 
 export function isTauri(): boolean {
@@ -98,6 +98,11 @@ export const api = {
   resetPanelPosition: () => invoke<void>("reset_panel_position"),
   getPetMood: () => invoke<PetMood>("get_pet_mood"),
   getLive2DInfo: () => invoke<{ modelsDir: string }>("get_live2d_info"),
+  /** 一键导入我的 Live2D: scan 下载/桌面/文稿/~/Live2D/old checkouts, copy into app data, update settings. */
+  scanImportLive2D: (force = true) => invoke<Live2DImport>("scan_and_import_live2d", { force }),
+  importLive2DFolder: (path: string) => invoke<Live2DImport>("import_live2d_folder", { path }),
+  /** Native folder picker; null when cancelled. */
+  pickLive2DFolder: () => invoke<string | null>("pick_live2d_folder"),
   quit: () => invoke<void>("quit_app"),
 
   // 小喵: memory (local day/hour come from this webview's clock = user's timezone)
