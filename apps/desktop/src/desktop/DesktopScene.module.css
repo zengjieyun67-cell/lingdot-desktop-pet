@@ -569,6 +569,19 @@
   transition: opacity 60s linear;
   filter: saturate(0.88) contrast(1.02);
 }
+/* the living sea (WebGL ripples / glints / drift) over the photos; photos stay as the fallback */
+.seaCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  filter: saturate(0.88) contrast(1.02);
+  pointer-events: none;
+}
+.seaCanvas[data-ready="1"] { opacity: 1; }
 .seaTint {
   position: absolute;
   inset: 0;
