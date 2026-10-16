@@ -373,6 +373,12 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
       return done(null);
     case "voice_list_voices":
       return done([]);
+    case "start_screensaver":
+      window.open(`${window.location.pathname}${window.location.search}#/screensaver`, "_blank");
+      return done(undefined);
+    case "exit_screensaver":
+      if (window.location.hash.startsWith("#/screensaver") && window.opener) window.close();
+      return done(undefined);
     case "reset_panel_position":
     case "toggle_panel":
     case "show_panel":
