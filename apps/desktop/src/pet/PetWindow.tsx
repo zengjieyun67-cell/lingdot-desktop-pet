@@ -59,7 +59,11 @@ function personaSettings(s: AppSettings) {
   };
 }
 
-export function PetWindow({ variant = "pet" }: { variant?: "pet" | "desktop" } = {}) {
+/**
+ * `variant="desktop"`: lives inside the 桌面 / 屏保 scene instead of its own window.
+ * `quiet`: 屏保模式 — no speech bubbles or chips, just 小喵.
+ */
+export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" | "desktop"; quiet?: boolean } = {}) {
   const isDesktop = variant === "desktop";
   const stageRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<PetRenderer | null>(null);
@@ -416,7 +420,7 @@ export function PetWindow({ variant = "pet" }: { variant?: "pet" | "desktop" } =
       onContextMenu={onContextMenu}
       title={isDesktop ? hint.replace(" · 拖动移动", "").replace(" · ⌘/Ctrl+滚轮调大小", "") : hint}
     >
-      {bubble && (
+      {bubble && !quiet && (
         <div
           className={`${styles.bubble} ${bubble.notificationId ? "" : styles.bubbleLine}`}
           onMouseDown={(e) => e.stopPropagation()}
@@ -433,8 +437,8 @@ export function PetWindow({ variant = "pet" }: { variant?: "pet" | "desktop" } =
           )}
         </div>
       )}
-      {badge && <div className={styles.badge}>{badge}</div>}
-      {voiceLabel ? (
+      {badge && !quiet && <div className={styles.badge}>{badge}</div>}
+      {quiet ? null : voiceLabel ? (
         <div className={`${styles.chip} ${styles.chipVoice}`}>
           {voiceStatus.phase === "listening" ? "🎙️ " : voiceStatus.phase === "thinking" ? "💭 " : "💬 "}
           {voiceStatus.phase === "listening" && voiceStatus.transcript ? voiceStatus.transcript : voiceLabel}
