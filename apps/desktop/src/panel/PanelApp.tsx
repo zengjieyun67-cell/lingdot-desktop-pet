@@ -9,13 +9,15 @@ import { NotificationsView } from "./NotificationsView";
 import { SettingsView } from "./SettingsView";
 import { FirstRun } from "./FirstRun";
 import { ChatView } from "./ChatView";
+import { NotesView } from "../notes/NotesView";
 import { requestSettingsSection } from "./SettingsView";
 import s from "./Panel.module.css";
 
-export type Tab = "tasks" | "sites" | "chat" | "notifications" | "settings";
+export type Tab = "tasks" | "sites" | "notes" | "chat" | "notifications" | "settings";
 const TABS: Array<{ id: Tab; label: string; emoji: string }> = [
   { id: "tasks", label: "任务", emoji: "🧶" },
   { id: "sites", label: "网站", emoji: "🧭" },
+  { id: "notes", label: "便签", emoji: "📝" },
   { id: "chat", label: "聊天", emoji: "💬" },
   { id: "notifications", label: "通知", emoji: "🔔" },
   { id: "settings", label: "设置", emoji: "🎀" },
@@ -222,6 +224,7 @@ export function PanelApp() {
             <ErrorBanner message={error} onClose={() => setError(null)} />
             {tab === "tasks" && <TasksView />}
             {tab === "sites" && <SitesView />}
+            {tab === "notes" && <NotesView />}
             {tab === "chat" && <ChatView />}
             {tab === "notifications" && <NotificationsView />}
             {tab === "settings" && <SettingsView />}
