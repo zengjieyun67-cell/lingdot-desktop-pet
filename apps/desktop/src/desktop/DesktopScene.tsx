@@ -5,6 +5,8 @@ import { DESKTOP_STYLES, type ActivitySnapshot, type AppSettings, type DesktopSt
 import { dailyQuote, greeting, minuteOfDay, PHASE_LABEL, partOfDay, phaseWeights, posterHeadline, themeAt, themeVars, WEEKDAYS_SCRIPT, type Phase } from "./timeOfDay";
 import { NowPlaying } from "../ui/NowPlaying";
 import { previewStyle, useMinuteClock } from "./useSceneClock";
+import { DesktopWidgets } from "./DesktopWidgets";
+import { SeaCanvas } from "./SeaCanvas";
 import s from "./DesktopScene.module.css";
 
 /** desktop = 桌面模式 (wallpaper with a few entries); screensaver = 屏保模式 (look only). */
@@ -26,6 +28,7 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.8 1.8M16.2 16.2 18 18M6 18l1.8-1.8M16.2 7.8 18 6" />
     </>
   ),
+  notes: <path d="M6 4.5h12v10l-5 5H6zM13 19.5v-5h5M9 9h6M9 12h4" />,
   saver: (
     <>
       <rect x="3.5" y="5" width="17" height="11.5" rx="2" />
@@ -96,6 +99,7 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
   const [name, setName] = useState("小喵");
   const [slogan, setSlogan] = useState("今天也要元气满满.");
   const [scriptWeekday, setScriptWeekday] = useState(true);
+  const [saverNotes, setSaverNotes] = useState(false);
   const [style, setStyle] = useState<DesktopStyle>(() => previewStyle() ?? "sonoma");
   const saver = mode === "screensaver";
   useScreensaverExit(saver);
@@ -108,6 +112,7 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
       setStyle(previewStyle() ?? (DESKTOP_STYLES.includes(st.desktopStyle) ? st.desktopStyle : "sonoma"));
       setSlogan(st.desktopSlogan?.trim() || "今天也要元气满满.");
       setScriptWeekday(st.desktopScriptWeekday ?? true);
+      setSaverNotes(st.screensaverNotes ?? false);
     };
     const load = () =>
       void api
@@ -150,6 +155,7 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
   const entries: Entry[] = [
     { id: "tasks", label: "任务", run: () => open("tasks"), badge: running + attention },
     { id: "chat", label: "聊天", run: () => open("chat") },
+    { id: "notes", label: "便签", run: () => open("notes") },
     { id: "settings", label: "设置", run: () => open("settings") },
     { id: "saver", label: "屏保", run: startSaver },
   ];
@@ -173,6 +179,7 @@ export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?:
       ) : (
         <SonomaScene {...info} />
       )}
+      <DesktopWidgets style={style} now={now} saver={saver} saverNotes={saverNotes} />
       {saver && <div className={s.shield} aria-hidden />}
     </div>
   );
@@ -377,6 +384,7 @@ function SeaScene({ now, music, entries, saver, pet, scriptWeekday }: SceneInfo)
           aria-hidden
         />
       ))}
+      <SeaCanvas weights={w} className={s.seaCanvas} />
       <div className={s.seaTint} aria-hidden />
       <header className={s.seaHead}>
         <div className={s.seaGreet}>{greeting(now)}</div>
