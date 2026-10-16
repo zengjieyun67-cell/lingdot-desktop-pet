@@ -63,7 +63,13 @@ export interface AppSettings {
   // phase 2: display mode
   displayMode: DisplayMode;
   desktopInteractive: boolean;
+  /** Look of 桌面模式 + 屏保模式 */
+  desktopStyle: DesktopStyle;
+  /** Auto-start the lingdot screen saver after N idle minutes (0 = never). */
+  screensaverIdleMins: number;
 }
+
+export type DesktopStyle = "sonoma" | "poster";
 
 export type DisplayMode = "pet" | "desktop";
 
@@ -161,6 +167,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   idleStates: true,
   displayMode: "pet",
   desktopInteractive: false,
+  desktopStyle: "sonoma",
+  screensaverIdleMins: 0,
 };
 
 export type { PersonaMemory, InteractionKind } from "@desktop-pet/shared";
