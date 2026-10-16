@@ -1,17 +1,18 @@
 import { useEffect, useRef } from "react";
 import styles from "./RadialMenu.module.css";
 
-export type RadialAction = "chat" | "tasks" | "music" | "settings";
+export type RadialAction = "chat" | "tasks" | "music" | "settings" | "notes";
 
 export const RADIAL_ITEMS: Array<{ id: RadialAction; label: string; icon: string }> = [
   { id: "chat", label: "聊天", icon: "💬" },
   { id: "tasks", label: "任务", icon: "✓" },
   { id: "music", label: "音乐", icon: "♪" },
   { id: "settings", label: "设置", icon: "⚙" },
+  { id: "notes", label: "便签", icon: "✎" },
 ];
 
-/** Ring position (deg, 0 = right, clockwise) of each pill: top-left, top-right, bottom-right, bottom-left. */
-export const RADIAL_ANGLES = [-140, -40, 40, 140];
+/** Ring position (deg, 0 = right, clockwise) of each pill: top-left, top-right, bottom-right, bottom-left, bottom. */
+export const RADIAL_ANGLES = [-148, -32, 32, 148, 90];
 
 /** Arc length 0..1 for the yellow progress ring: today's finished share of tasks. */
 export function radialProgress(done: number, running: number): number {
@@ -22,7 +23,7 @@ export function radialProgress(done: number, running: number): number {
 
 /**
  * Glass radial dial around the pet (right-click): center mic = push-to-talk (hold) or open chat,
- * pills on the ring = 聊天 / 任务 / 音乐 / 设置, yellow arc = today's task progress
+ * pills on the ring = 聊天 / 任务 / 音乐 / 设置 / 便签 (quick-add), yellow arc = today's task progress
  * (pulses while listening).
  */
 export function RadialMenu({
