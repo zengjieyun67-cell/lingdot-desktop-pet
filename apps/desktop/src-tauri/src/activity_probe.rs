@@ -30,11 +30,25 @@ pub fn spawn(app: AppHandle) {
         .spawn(move || {
             let mut tracker = ActivityTracker::new(TrackerConfig::default());
             let mut probe = Probe::default();
+            // Auto 屏保: fire once when idle crosses the threshold, re-arm after activity.
+            let mut saver_armed = true;
             loop {
                 std::thread::sleep(POLL);
                 let s = app.state::<AppState>().engine.db().get_settings().unwrap_or_default();
                 let music = if s.music_detection { probe.music(s.music_include_browsers) } else { None };
-                let idle = if s.idle_states { probe.idle_secs() } else { Some(0) };
+                let raw_idle = if s.idle_states || s.screensaver_idle_mins > 0 { probe.idle_secs() } else { Some(0) };
+                let idle = if s.idle_states { raw_idle } else { Some(0) };
+                if s.screensaver_idle_mins > 0 {
+                    let secs = raw_idle.unwrap_or(0);
+                    if secs >= u64::from(s.screensaver_idle_mins) * 60 {
+                        if saver_armed && !crate::windows::screensaver_open(&app) {
+                            crate::windows::show_screensaver(&app);
+                        }
+                        saver_armed = false;
+                    } else {
+                        saver_armed = true;
+                    }
+                }
                 let (snap, events) = tracker.update(now_ms(), idle, music);
                 let changed = {
                     let st = app.state::<ActivityState>();
