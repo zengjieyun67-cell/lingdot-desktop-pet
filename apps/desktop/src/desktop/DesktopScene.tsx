@@ -1,253 +1,332 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import type { Task } from "@desktop-pet/shared";
 import { api, on } from "../api/client";
-import type { ActivitySnapshot, AppSettings } from "../api/types";
+import type { ActivitySnapshot, AppSettings, DesktopStyle } from "../api/types";
+import { minuteOfDay, PHASE_LABEL, partOfDay, posterHeadline, themeAt, themeVars, type Phase } from "./timeOfDay";
+import { previewStyle, useMinuteClock } from "./useSceneClock";
 import s from "./DesktopScene.module.css";
 
-const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-const STATUS_TEXT: Record<string, string> = {
-  pending: "等待中",
-  running: "进行中",
-  completed: "完成啦",
-  needs_attention: "等你处理",
-  failed: "失败了",
-  unknown: "不确定",
-};
-const NAV: Array<{ id: string; label: string }> = [
-  { id: "home", label: "桌面" },
-  { id: "tasks", label: "任务" },
-  { id: "chat", label: "聊天" },
-  { id: "settings", label: "设置" },
-];
-const SERVICES: Array<{ tab: string; label: string; icon: ReactNode }> = [
-  { tab: "tasks", label: "任务", icon: <path d="M5 6h14M5 12h14M5 18h9" /> },
-  { tab: "chat", label: "聊天", icon: <path d="M4 5h16v11H9l-5 4z" /> },
-  { tab: "sites", label: "网站", icon: <><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" /></> },
-  { tab: "notifications", label: "通知", icon: <path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20h4" /> },
-  { tab: "settings", label: "设置", icon: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></> },
-  { tab: "settings", label: "语音", icon: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></> },
-];
+/** desktop = 桌面模式 (wallpaper with a few entries); screensaver = 屏保模式 (look only). */
+export type SceneMode = "desktop" | "screensaver";
 
-function greeting(h: number): string {
-  if (h < 5) return "夜深了，早点睡";
-  if (h < 11) return "早上好";
-  if (h < 14) return "中午好，记得吃饭";
-  if (h < 18) return "下午好";
-  if (h < 22) return "晚上好";
-  return "夜深了，早点睡";
+const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const MONTHS_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+const open = (tab: string) => void api.showPanel(tab).catch(() => undefined);
+const startSaver = () => void api.startScreensaver().catch(() => undefined);
+
+const ICONS: Record<string, ReactNode> = {
+  tasks: <path d="M5 6.5h14M5 12h14M5 17.5h9" />,
+  chat: <path d="M4.5 5.5h15v10.5H9.5L4.5 20z" />,
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.8 1.8M16.2 16.2 18 18M6 18l1.8-1.8M16.2 7.8 18 6" />
+    </>
+  ),
+  saver: (
+    <>
+      <rect x="3.5" y="5" width="17" height="11.5" rx="2" />
+      <path d="M9 20h6M12 16.5V20" />
+    </>
+  ),
+};
+
+interface Entry {
+  id: string;
+  label: string;
+  run: () => void;
+  badge?: number;
 }
 
-function dayStart(offset = 0): number {
+/** 屏保模式: leave on the first real mouse move, click, scroll or key press. */
+function useScreensaverExit(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const started = performance.now();
+    let origin: { x: number; y: number } | null = null;
+    let gone = false;
+    const exit = () => {
+      // the window appearing can itself produce a stray event: ignore the first moment
+      if (gone || performance.now() - started < 1200) return;
+      gone = true;
+      void api.exitScreensaver().catch(() => undefined);
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!origin) {
+        origin = { x: e.screenX, y: e.screenY };
+        return;
+      }
+      if (Math.hypot(e.screenX - origin.x, e.screenY - origin.y) > 10) exit();
+    };
+    const opts = { capture: true } as const;
+    window.addEventListener("mousemove", onMove, opts);
+    window.addEventListener("mousedown", exit, opts);
+    window.addEventListener("wheel", exit, opts);
+    window.addEventListener("keydown", exit, opts);
+    window.addEventListener("touchstart", exit, opts);
+    return () => {
+      window.removeEventListener("mousemove", onMove, opts);
+      window.removeEventListener("mousedown", exit, opts);
+      window.removeEventListener("wheel", exit, opts);
+      window.removeEventListener("keydown", exit, opts);
+      window.removeEventListener("touchstart", exit, opts);
+    };
+  }, [active]);
+}
+
+function dayStart(): number {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + offset);
   return d.getTime();
 }
 
-const open = (tab: string) => void api.showPanel(tab).catch(() => undefined);
-
-/** 桌面模式: a soft glass dashboard with the user's Live2D 小喵 standing in the middle. */
-export function DesktopScene({ pet }: { pet: ReactNode }) {
-  const [now, setNow] = useState(() => new Date());
+/**
+ * 桌面模式 / 屏保模式 scene. Two looks (设置 → 通用 → 桌面风格):
+ *  - sonoma: Apple-style thin lock-screen clock over a flowing aurora, 小喵 in front of a glass halo
+ *  - poster: magazine poster — giant serif numerals, headline, the song as the deck, half-body close-up, film grain
+ * Both are tinted by the 时间系统 (timeOfDay.ts): 清晨 / 白天 / 黄昏 / 夜晚 blended every minute.
+ */
+export function DesktopScene({ pet, mode = "desktop" }: { pet: ReactNode; mode?: SceneMode }) {
+  const now = useMinuteClock();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activity, setActivity] = useState<ActivitySnapshot | null>(null);
   const [name, setName] = useState("小喵");
-
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(new Date()), 15_000);
-    return () => window.clearInterval(t);
-  }, []);
+  const [style, setStyle] = useState<DesktopStyle>(() => previewStyle() ?? "sonoma");
+  const saver = mode === "screensaver";
+  useScreensaverExit(saver);
 
   useEffect(() => {
     let alive = true;
     const offs: Array<() => void> = [];
+    const apply = (st: AppSettings) => {
+      setName(st.petName || "小喵");
+      setStyle(previewStyle() ?? (st.desktopStyle === "poster" ? "poster" : "sonoma"));
+    };
     const load = () =>
       void api
         .listTasks({ limit: 60 })
         .then((ts) => alive && setTasks(ts))
         .catch(() => undefined);
     load();
-    void api.bootstrap().then((b) => alive && setName(b.settings.petName || "小喵")).catch(() => undefined);
+    void api.bootstrap().then((b) => alive && apply(b.settings)).catch(() => undefined);
     void api.getActivity().then((a) => alive && setActivity(a)).catch(() => undefined);
     const sub = <T,>(ev: string, cb: (p: T) => void) =>
       void on<T>(ev, cb).then((u) => (alive ? offs.push(u) : u())).catch(() => undefined);
     sub("tasks-changed", load);
     sub<ActivitySnapshot>("pet-activity", (a) => setActivity(a));
-    sub<AppSettings>("settings-changed", (st) => setName(st.petName || "小喵"));
+    sub<AppSettings>("settings-changed", apply);
     return () => {
       alive = false;
       offs.forEach((u) => u());
     };
   }, []);
 
+  const theme = useMemo(() => themeAt(minuteOfDay(now)), [now]);
+  const vars = useMemo(() => themeVars(theme) as CSSProperties, [theme]);
+
   const from = dayStart();
-  const today = useMemo(
-    () => tasks.filter((t) => t.updatedAt >= from || t.status === "running" || t.status === "needs_attention"),
-    [tasks, from],
-  );
-  const running = today.filter((t) => t.status === "running").length;
-  const attention = today.filter((t) => t.status === "needs_attention").length;
-  const done = today.filter((t) => t.status === "completed").length;
-
-  // completed per day over the last 7 days (for the little bar card)
-  const week = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const start = dayStart(i - 6);
-      const end = start + 86_400_000;
-      const n = tasks.filter((t) => t.status === "completed" && t.updatedAt >= start && t.updatedAt < end).length;
-      const d = new Date(start);
-      return { label: i === 6 ? "今天" : `${d.getMonth() + 1}.${d.getDate()}`, n };
-    });
-    const max = Math.max(1, ...days.map((d) => d.n));
-    return days.map((d) => ({ ...d, h: 12 + (d.n / max) * 48 }));
-  }, [tasks]);
-
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
+  const running = tasks.filter((t) => t.status === "running").length;
+  const attention = tasks.filter((t) => t.status === "needs_attention").length;
+  const done = tasks.filter((t) => t.status === "completed" && t.updatedAt >= from).length;
   const music = activity?.kind === "listening_music" ? activity.music : null;
   const stateText =
-    activity?.kind === "listening_music" ? "一起听歌中" : activity?.kind === "napping" ? "打盹中 zZ" : activity?.kind === "stretching" ? "伸懒腰～" : running ? "帮你盯着任务" : "悠闲中";
+    activity?.kind === "listening_music"
+      ? "陪你听歌"
+      : activity?.kind === "napping"
+        ? "在打盹"
+        : activity?.kind === "stretching"
+          ? "在伸懒腰"
+          : running
+            ? "帮你盯着任务"
+            : "在发呆";
 
+  const entries: Entry[] = [
+    { id: "tasks", label: "任务", run: () => open("tasks"), badge: running + attention },
+    { id: "chat", label: "聊天", run: () => open("chat") },
+    { id: "settings", label: "设置", run: () => open("settings") },
+    { id: "saver", label: "屏保", run: startSaver },
+  ];
+
+  const info: SceneInfo = { now, phase: theme.phase, name, stateText, music, done, entries, saver, pet };
   return (
-    <div className={s.scene}>
-      <div className={s.frame}>
-        {/* ---------- sidebar ---------- */}
-        <aside className={s.side}>
-          <div className={s.brand}>
-            <span className={s.logo}>l</span>
-            <span className={s.brandName}>lingdot</span>
-            <span className={s.avatar}>🐾</span>
-          </div>
-          <div className={s.search}>
-            <span className={s.searchDot} />
-            {greeting(now.getHours())}，今天也加油
-          </div>
-
-          <button className={`${s.acct} ${s.acctOn}`} onClick={() => open("tasks")}>
-            <span className={`${s.chip} ${s.chipPink}`}>进行中</span>
-            <span className={s.acctNum}>{running}</span>
-            <span className={s.chev}>›</span>
-          </button>
-          <button className={s.acct} onClick={() => open("tasks")}>
-            <span className={`${s.chip} ${s.chipBlue}`}>等你</span>
-            <span className={s.acctNum}>{attention}</span>
-            <span className={s.chev}>›</span>
-          </button>
-
-          <div className={s.sideTitle}>快捷</div>
-          <div className={s.grid}>
-            {SERVICES.map((it) => (
-              <button key={it.label} className={s.svc} onClick={() => open(it.tab)}>
-                <svg viewBox="0 0 24 24" className={s.svcIcon} aria-hidden>
-                  {it.icon}
-                </svg>
-                {it.label}
-              </button>
-            ))}
-          </div>
-
-          <div className={s.sideFoot}>
-            <span>{name}</span>
-            <span className={s.footDot} />
-            <span>{stateText}</span>
-          </div>
-        </aside>
-
-        {/* ---------- main ---------- */}
-        <main className={s.main}>
-          <nav className={s.nav}>
-            {NAV.map((n) => (
-              <button key={n.id} className={`${s.navItem} ${n.id === "home" ? s.navOn : ""}`} onClick={() => n.id !== "home" && open(n.id)}>
-                {n.label}
-              </button>
-            ))}
-          </nav>
-
-          <h1 className={s.title}>
-            {now.getMonth() + 1}月{now.getDate()}日 <span>{WEEKDAYS[now.getDay()]}</span>
-          </h1>
-
-          <div className={s.stageArea}>
-            <div className={s.orb} />
-            <div className={s.petSlot} data-pet-slot>
-              {pet}
-            </div>
-
-            {/* floating bubbles */}
-            <div className={`${s.bub} ${s.bubPurple} ${s.b1}`}>
-              <span className={s.bubLabel}>现在</span>
-              <span className={s.bubBig}>
-                {hh}:{mm}
-              </span>
-            </div>
-            <div className={`${s.bub} ${s.bubBlue} ${s.b2}`}>
-              <span className={s.bubLabel}>{music ? music.app : "音乐"}</span>
-              <span className={s.bubMid}>{music ? music.title ?? "正在播放" : "没在放歌"}</span>
-            </div>
-            <div className={`${s.bub} ${s.bubOrange} ${s.b3}`}>
-              <span className={s.bubLabel}>今日完成</span>
-              <span className={s.bubBig}>{done}</span>
-            </div>
-            <button className={`${s.bub} ${s.bubWhite} ${s.b4}`} onClick={() => open("chat")}>
-              聊天
-            </button>
-
-            {/* weekly bars */}
-            <div className={s.bars}>
-              {week.map((d) => (
-                <div key={d.label} className={s.barCol}>
-                  <span className={s.barNum}>{d.n}</span>
-                  <span className={`${s.bar} ${d.label === "今天" ? s.barToday : ""}`} style={{ height: d.h }} />
-                  <span className={s.barLabel}>{d.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={s.bottom}>
-            <section className={s.list}>
-              <div className={s.listHead}>
-                <span>今天的任务</span>
-                <span className={s.listCount}>{today.length}</span>
-              </div>
-              {today.length === 0 ? (
-                <div className={s.empty}>今天还没有任务，先陪{name}晒会儿太阳</div>
-              ) : (
-                today.slice(0, 3).map((t) => (
-                  <div key={t.id} className={s.row}>
-                    <span className={`${s.rowIcon} ${s["st_" + t.status] ?? ""}`}>{t.title.slice(0, 1)}</span>
-                    <span className={s.rowText}>
-                      <span className={s.rowTitle}>{t.title}</span>
-                      <span className={s.rowSub}>
-                        {new Date(t.updatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </span>
-                    <span className={s.rowStatus}>{STATUS_TEXT[t.status] ?? t.status}</span>
-                  </div>
-                ))
-              )}
-            </section>
-            <section className={s.list}>
-              <div className={s.listHead}>
-                <span>{name}的状态</span>
-              </div>
-              <div className={s.people}>
-                {[
-                  { k: "♪", t: "听歌", on: activity?.kind === "listening_music" },
-                  { k: "🙆", t: "伸懒腰", on: activity?.kind === "stretching" },
-                  { k: "💤", t: "打盹", on: activity?.kind === "napping" },
-                  { k: "✨", t: "工作", on: running > 0 },
-                ].map((p) => (
-                  <div key={p.t} className={`${s.person} ${p.on ? s.personOn : ""}`}>
-                    <span className={s.personAv}>{p.k}</span>
-                    <span>{p.t}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        </main>
-      </div>
+    <div
+      className={`${s.scene} ${style === "poster" ? s.poster : s.sonoma} ${saver ? s.saver : ""}`}
+      style={vars}
+      data-phase={theme.phase}
+      data-style={style}
+      data-mode={mode}
+    >
+      {style === "poster" ? <PosterScene {...info} /> : <SonomaScene {...info} />}
+      {saver && <div className={s.shield} aria-hidden />}
     </div>
+  );
+}
+
+interface SceneInfo {
+  now: Date;
+  phase: Phase;
+  name: string;
+  stateText: string;
+  music: { app: string; title: string | null; artist: string | null } | null;
+  done: number;
+  entries: Entry[];
+  saver: boolean;
+  pet: ReactNode;
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+// ------------------------------------------------------------------ A. Sonoma
+
+function SonomaScene({ now, name, stateText, music, entries, saver, pet, phase }: SceneInfo) {
+  const time = `${now.getHours()}:${pad(now.getMinutes())}`;
+  return (
+    <>
+      <div className={s.aurora} aria-hidden>
+        <i className={`${s.blob} ${s.blob1}`} />
+        <i className={`${s.blob} ${s.blob2}`} />
+        <i className={`${s.blob} ${s.blob3}`} />
+        <i className={`${s.blob} ${s.blob4}`} />
+        <i className={`${s.ribbon} ${s.ribbon1}`} />
+        <i className={`${s.ribbon} ${s.ribbon2}`} />
+        <i className={`${s.ribbon} ${s.ribbon3}`} />
+      </div>
+      <div className={s.sheen} aria-hidden />
+
+      <header className={s.lock}>
+        <div className={s.lockDate}>
+          {now.getMonth() + 1}月{now.getDate()}日 {WEEKDAYS[now.getDay()]}
+        </div>
+        <div className={s.lockTime}>{time}</div>
+      </header>
+
+      <div className={s.halo} aria-hidden>
+        <span className={s.haloRing} />
+      </div>
+      <div className={s.petSlot} data-pet-slot>
+        {pet}
+      </div>
+
+      <div className={s.lockSub}>
+        {music ? (
+          <>
+            <span className={s.eq} aria-hidden>
+              <i />
+              <i />
+              <i />
+            </span>
+            {music.title ?? "正在播放"}
+            {music.artist ? <span className={s.dim}> · {music.artist}</span> : null}
+          </>
+        ) : (
+          <>
+            {PHASE_LABEL[phase]} · {name}
+            {stateText}
+          </>
+        )}
+      </div>
+
+      {!saver && (
+        <nav className={s.dock}>
+          {entries.map((e) => (
+            <button key={e.id} className={s.dockBtn} onClick={e.run} title={e.label}>
+              <svg viewBox="0 0 24 24" className={s.dockIcon} aria-hidden>
+                {ICONS[e.id]}
+              </svg>
+              <span className={s.dockLabel}>{e.label}</span>
+              {e.badge ? <span className={s.dockBadge}>{e.badge}</span> : null}
+            </button>
+          ))}
+        </nav>
+      )}
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ B. Poster
+
+function PosterScene({ now, name, stateText, music, done, entries, saver, pet }: SceneInfo) {
+  const h = now.getHours();
+  const [l1, l2] = posterHeadline(h);
+  const issue = `${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  return (
+    <>
+      <div className={s.pWash} aria-hidden />
+
+      <header className={s.pTop}>
+        <span className={s.pMast}>LINGDOT</span>
+        <span className={s.pMeta}>
+          VOL.{now.getFullYear() % 100} — NO.{issue}
+        </span>
+        <span className={s.pMeta}>
+          {WEEKDAYS_EN[now.getDay()]} · {MONTHS_EN[now.getMonth()]} {now.getDate()}, {now.getFullYear()}
+        </span>
+      </header>
+
+      <div className={s.pTime} aria-label="现在时间">
+        {pad(h)}
+        <span className={s.pColon}>:</span>
+        {pad(now.getMinutes())}
+      </div>
+
+      <div className={s.pPetSlot} data-pet-slot="poster">
+        {pet}
+      </div>
+
+      <section className={s.pCopy}>
+        <div className={s.pKicker}>
+          <span className={s.pDot} />
+          {partOfDay(h)}特辑 · {name}的{WEEKDAYS[now.getDay()]}
+        </div>
+        <h1 className={s.pHead}>
+          {l1}
+          <br />
+          <em>{l2}</em>
+        </h1>
+        <p className={s.pDeck}>
+          {music ? (
+            <>
+              <span className={s.pDeckLabel}>Now Playing</span>
+              《{music.title ?? "正在播放"}》{music.artist ? <> — {music.artist}</> : null}
+            </>
+          ) : (
+            <>
+              <span className={s.pDeckLabel}>Today</span>
+              {name}
+              {stateText}
+            </>
+          )}
+        </p>
+        {!saver && (
+          <div className={s.pByline}>
+            {music ? `via ${music.app}` : `${now.getMonth() + 1}月${now.getDate()}日 · ${WEEKDAYS[now.getDay()]}`}
+            <span className={s.pRule} />
+            今日完成 {done}
+          </div>
+        )}
+      </section>
+
+      <aside className={s.pSide} aria-hidden>
+        ISSUE {issue} · {name.toUpperCase()} · DESKTOP EDITION
+      </aside>
+
+      {!saver && (
+        <nav className={s.pIndex}>
+          <span className={s.pIndexHead}>Contents</span>
+          {entries.map((e, i) => (
+            <button key={e.id} className={s.pIndexItem} onClick={e.run}>
+              <span className={s.pIndexNo}>{pad(i + 1)}</span>
+              {e.label}
+              {e.badge ? <span className={s.pIndexBadge}>{e.badge}</span> : null}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className={s.grain} aria-hidden />
+      <div className={s.pVignette} aria-hidden />
+    </>
   );
 }
