@@ -129,7 +129,7 @@
 .caption {
   position: absolute;
   left: 50%;
-  bottom: 9%;
+  top: 12.5%;
   transform: translateX(-50%);
   font-size: max(9px, 4.4cqi);
   color: #6b6590;
