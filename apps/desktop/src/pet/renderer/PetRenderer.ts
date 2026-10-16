@@ -1,4 +1,5 @@
 import type { DisplayState, Emotion, PetMood } from "@desktop-pet/shared";
+import type { TouchKind } from "../touchReactions";
 
 /**
  * Abstraction over the pet character. Two implementations:
@@ -23,6 +24,8 @@ export interface PetRenderer {
   setSpeaking?(speaking: boolean): void;
   /** Phase 2: 小喵 is listening to the user (mic open) – perk the ears. */
   setListening?(listening: boolean): void;
+  /** Touch / drag reaction (head pat, poke, rub, drag, drop, shake): motion + expression. */
+  react?(kind: TouchKind): void;
   destroy(): void;
 }
 
