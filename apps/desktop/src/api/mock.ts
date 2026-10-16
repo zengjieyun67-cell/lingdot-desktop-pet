@@ -4,7 +4,7 @@
  * localStorage. NOT used in the packaged app.
  */
 import type { NotificationRecord, PetMood, Site, Task, TaskDetail, TaskEvent, TaskStatus } from "@desktop-pet/shared";
-import { DEFAULT_SETTINGS, IDLE_VOICE, type ActivitySnapshot, type AppSettings, type SiteInput, type TaskFilter, type TaskInput, type VoiceStatus } from "./types";
+import { DEFAULT_SETTINGS, IDLE_VOICE, NOTE_COLORS, type ActivitySnapshot, type AppSettings, type DesktopFolder, type Note, type NoteInput, type NotePatch, type SiteInput, type TaskFilter, type TaskInput, type VoiceStatus } from "./types";
 import type { PersonaMemory } from "@desktop-pet/shared";
 
 function defaultMemory(): PersonaMemory {
@@ -24,7 +24,32 @@ interface MockDb {
   token: string;
   memory?: PersonaMemory;
   hasKey?: boolean;
+  notes?: Note[];
 }
+
+function seedNotes(now: number): Note[] {
+  const n = (content: string, color: Note["color"], pinned: boolean, ago: number, remindAt: number | null = null): Note => ({
+    id: uid(), content, color, pinned, popped: false, x: null, y: null, w: 240, h: 220,
+    createdAt: now - ago, updatedAt: now - ago, remindAt, reminded: false, done: false,
+  });
+  return [
+    n("今天要做\n- [x] 回复导师邮件\n- [ ] 交周报\n- [ ] 给猫粮下单", "yellow", true, 120_000),
+    n("周六 19:30 和阿杰看电影 🎬", "pink", true, 3_600_000, now + 3 * 3_600_000),
+    n("灵感：桌面模式加一个海浪白噪音", "mint", false, 86_400_000),
+  ];
+}
+
+/** Notes sorted like Rust: pinned first, then most recently edited. */
+function sortNotes(list: Note[]): Note[] {
+  return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
+}
+
+const MOCK_FOLDERS: DesktopFolder[] = [
+  { name: "下载", path: "/Users/you/Downloads", kind: "downloads", exists: true },
+  { name: "文稿", path: "/Users/you/Documents", kind: "documents", exists: true },
+  { name: "桌面", path: "/Users/you/Desktop", kind: "desktop", exists: true },
+  { name: "应用程序", path: "/Applications", kind: "applications", exists: true },
+];
 
 const KEY = "desktop-pet-mock-v1";
 const listeners = new Map<string, Set<(p: unknown) => void>>();
@@ -57,6 +82,7 @@ function seed(): MockDb {
     notifications: [],
     settings: { ...DEFAULT_SETTINGS },
     token: uid() + uid() + uid(),
+    notes: seedNotes(now),
   };
 }
 
@@ -82,6 +108,7 @@ function loadRaw(): MockDb {
     if (raw) {
       const db = JSON.parse(raw) as MockDb;
       db.settings = { ...DEFAULT_SETTINGS, ...db.settings }; // settings saved before phase 2
+      db.notes ??= seedNotes(Date.now());
       return db;
     }
   } catch {
@@ -403,6 +430,83 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
     case "exit_screensaver":
       if (window.location.hash.startsWith("#/screensaver") && window.opener) window.close();
       return done(undefined);
+    case "list_notes":
+      return done(sortNotes(db.notes ?? []));
+    case "create_note": {
+      const input = args.input as NoteInput;
+      if ((input.content ?? "").length > 4000) throw new Error("便签最多 4000 个字");
+      const note: Note = {
+        id: uid(), content: input.content ?? "", color: NOTE_COLORS.includes(input.color as Note["color"]) ? (input.color as Note["color"]) : "yellow",
+        pinned: !!input.pinned, popped: !!args.popOut, x: null, y: null, w: 240, h: 220, createdAt: now, updatedAt: now,
+        remindAt: input.remindAt ?? null, reminded: false, done: false,
+      };
+      db.notes = [note, ...(db.notes ?? [])];
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(note);
+    }
+    case "update_note": {
+      const patch = args.patch as NotePatch;
+      const i = (db.notes ?? []).findIndex((x) => x.id === args.id);
+      if (i < 0) throw new Error("not found");
+      const cur = db.notes![i]!;
+      const next: Note = { ...cur, ...patch, updatedAt: Math.max(now, cur.updatedAt) };
+      if ("remindAt" in patch && patch.remindAt !== cur.remindAt) next.reminded = false;
+      db.notes![i] = next;
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(next);
+    }
+    case "delete_note": {
+      const n = (db.notes ?? []).find((x) => x.id === args.id);
+      if (!n) throw new Error("not found");
+      db.notes = db.notes!.filter((x) => x.id !== args.id);
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(n);
+    }
+    case "restore_note": {
+      const n = { ...(args.note as Note), popped: false };
+      db.notes = [...(db.notes ?? []).filter((x) => x.id !== n.id), n];
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(n);
+    }
+    case "pop_out_note":
+    case "close_note_window": {
+      const n = (db.notes ?? []).find((x) => x.id === args.id);
+      if (n) n.popped = cmd === "pop_out_note";
+      if (cmd === "pop_out_note" && n) window.open(`${window.location.pathname}${window.location.search}#/note/${n.id}`, "_blank", "width=260,height=240");
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(undefined);
+    }
+    case "note_from_text": {
+      const text = String(args.text ?? "").trim();
+      const m = /^(?:小喵[，, ]*)?(?:帮我记一下|帮我记下|帮我记|记一下|记下来|记下|备忘|便签)[：:，,\s]*(.+)$/.exec(text);
+      if (!m) return done(null);
+      const note: Note = {
+        id: uid(), content: m[1]!, color: "yellow", pinned: false, popped: false, x: null, y: null, w: 240, h: 220,
+        createdAt: now, updatedAt: now, remindAt: null, reminded: false, done: false,
+      };
+      db.notes = [note, ...(db.notes ?? [])];
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(note);
+    }
+    case "new_quick_note_cmd": {
+      const note: Note = {
+        id: uid(), content: "", color: "yellow", pinned: false, popped: true, x: null, y: null, w: 240, h: 220,
+        createdAt: now, updatedAt: now, remindAt: null, reminded: false, done: false,
+      };
+      db.notes = [note, ...(db.notes ?? [])];
+      queueMicrotask(() => emit("notes-changed", null));
+      return done(undefined);
+    }
+    case "list_desktop_folders":
+    case "add_desktop_folder":
+    case "remove_desktop_folder":
+      return done([...MOCK_FOLDERS, ...db.settings.desktopFolders.map((p): DesktopFolder => ({ name: p.split("/").filter(Boolean).pop() ?? p, path: p, kind: "custom", exists: true }))]);
+    case "open_desktop_folder":
+      return done(undefined);
+    case "get_weather":
+      return done(db.settings.desktopWeather ? { city: "Los Angeles", tempC: 23, code: 1, hiC: 26, loC: 16, fetchedAt: now } : null);
+    case "get_system_stats":
+      return done({ battery: 82, charging: false, cpuLoad: 0.18 });
     case "reset_panel_position":
     case "toggle_panel":
     case "show_panel":
