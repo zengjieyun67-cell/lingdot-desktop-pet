@@ -267,6 +267,22 @@ impl VoiceRuntime {
 
     fn handle_utterance(&self, app: &AppHandle, text: String) {
         self.stop_listening();
+        // 「记一下…」 → a sticky note instead of a chat turn (works without a chat key).
+        if let Some(cmd) = pet_core::notes::parse_note_command(&text, pet_core::model::now_ms(), crate::notes_cmds::local_tz_offset_secs()) {
+            let created = app.state::<crate::AppState>().engine.db().create_note(&pet_core::notes::NoteInput {
+                content: cmd.content,
+                remind_at: cmd.remind_at,
+                ..Default::default()
+            });
+            if created.is_ok() {
+                let _ = app.emit("notes-changed", ());
+                let reply = if cmd.remind_at.is_some() { "记好啦，到点叫你" } else { "记好啦" };
+                let _ = app.emit("voice-turn", serde_json::json!({ "role": "user", "content": text }));
+                let _ = app.emit("voice-turn", serde_json::json!({ "role": "assistant", "content": reply }));
+                self.speak(app, reply, true);
+                return;
+            }
+        }
         let history = {
             let mut i = self.inner.lock().unwrap();
             i.phase = VoicePhase::Thinking;
