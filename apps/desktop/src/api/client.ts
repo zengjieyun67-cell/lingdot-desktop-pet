@@ -6,7 +6,7 @@
 import type { PetMood, Site, Task, TaskDetail, TaskStatus, NotificationRecord } from "@desktop-pet/shared";
 import type { InteractionKind, PersonaMemory } from "@desktop-pet/shared";
 import { localDay } from "@desktop-pet/shared";
-import type { ActivitySnapshot, AppSettings, Live2DImport, Bootstrap, ChatMessage, ConnectionInfo, DisplayMode, SiteInput, TaskFilter, TaskInput, VoiceInfo, VoiceStatus } from "./types";
+import type { ActivitySnapshot, AppSettings, Live2DImport, Bootstrap, ChatMessage, ConnectionInfo, DesktopFolder, DisplayMode, Note, NoteInput, NotePatch, SiteInput, SystemStats, TaskFilter, TaskInput, VoiceInfo, VoiceStatus, Weather } from "./types";
 import { mockInvoke, mockListen } from "./mock";
 
 export function isTauri(): boolean {
@@ -138,7 +138,44 @@ export const api = {
   // 屏保模式 (full-screen, look-only window at #/screensaver)
   startScreensaver: () => invoke<void>("start_screensaver"),
   exitScreensaver: () => invoke<void>("exit_screensaver"),
+
+  // 便签
+  listNotes: () => invoke<Note[]>("list_notes"),
+  createNote: (input: NoteInput, popOut = false) => invoke<Note>("create_note", { input, popOut }),
+  updateNote: (id: string, patch: NotePatch) => invoke<Note>("update_note", { id, patch }),
+  /** Returns the deleted note so the UI can offer 「撤销」 (restoreNote). */
+  deleteNote: (id: string) => invoke<Note>("delete_note", { id }),
+  restoreNote: (note: Note) => invoke<Note>("restore_note", { note }),
+  popOutNote: (id: string) => invoke<void>("pop_out_note", { id }),
+  closeNoteWindow: (id: string) => invoke<void>("close_note_window", { id }),
+  /** 「记一下…」: creates a note (with a reminder when a time is named); null when the text is not a note request. */
+  noteFromText: (text: string) => invoke<Note | null>("note_from_text", { text, tzOffsetMin: -new Date().getTimezoneOffset() }),
+  newQuickNote: () => invoke<void>("new_quick_note_cmd"),
+
+  // 桌面 widgets
+  listDesktopFolders: () => invoke<DesktopFolder[]>("list_desktop_folders"),
+  openDesktopFolder: (path: string) => invoke<void>("open_desktop_folder", { path }),
+  /** No path = native folder picker. */
+  addDesktopFolder: (path?: string) => invoke<DesktopFolder[]>("add_desktop_folder", { path: path ?? null }),
+  removeDesktopFolder: (path: string) => invoke<DesktopFolder[]>("remove_desktop_folder", { path }),
+  getWeather: () => invoke<Weather | null>("get_weather"),
+  getSystemStats: () => invoke<SystemStats>("get_system_stats"),
 };
+
+/** Current webview window helpers (floating notes resize themselves; macOS has no native edge resize for borderless windows). */
+export async function setCurrentWindowSize(w: number, h: number): Promise<void> {
+  if (!isTauri()) return;
+  const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().setSize(new LogicalSize(w, h));
+}
+
+export async function currentWindowLogicalSize(): Promise<{ w: number; h: number }> {
+  if (!isTauri()) return { w: window.innerWidth, h: window.innerHeight };
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  const win = getCurrentWindow();
+  const [size, sf] = await Promise.all([win.innerSize(), win.scaleFactor()]);
+  return { w: size.width / sf, h: size.height / sf };
+}
 
 export function errorText(e: unknown): string {
   if (typeof e === "string") return e;
