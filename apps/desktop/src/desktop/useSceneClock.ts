@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { DesktopStyle } from "../api/types";
+import { DESKTOP_STYLES, type DesktopStyle } from "../api/types";
 
 /**
  * Browser-preview overrides (no effect inside the app unless the URL carries them):
@@ -22,7 +22,7 @@ export function previewTime(): { h: number; m: number } | null {
 export function previewStyle(): DesktopStyle | null {
   try {
     const s = new URLSearchParams(window.location.search).get("style");
-    return s === "sonoma" || s === "poster" ? s : null;
+    return s && (DESKTOP_STYLES as string[]).includes(s) ? (s as DesktopStyle) : null;
   } catch {
     return null;
   }
