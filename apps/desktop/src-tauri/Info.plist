@@ -8,5 +8,11 @@
   <string>小喵使用 macOS 自带的语音识别把你说的话转成文字，再回复你。</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>小喵会读取“音乐”或 Spotify 正在播放的歌名，用来显示听歌动作，不会控制播放。</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>小喵会在「下载」里找你的 Live2D 模型和 Cubism SDK 压缩包，复制一份给自己用，不会修改或上传原文件。</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>小喵会在桌面上找你的 Live2D 模型（或以前的项目文件夹），复制一份给自己用，不会修改或上传原文件。</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>小喵会在「文稿」里找你的 Live2D 模型，复制一份给自己用，不会修改或上传原文件。</string>
 </dict>
 </plist>
