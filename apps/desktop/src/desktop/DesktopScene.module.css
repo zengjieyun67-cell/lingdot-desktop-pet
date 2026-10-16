@@ -489,3 +489,208 @@
 @media (prefers-reduced-motion: reduce) {
   .blob, .ribbon, .halo, .grain, .eq i { animation: none; }
 }
+
+/* ================================================================ shared extras */
+
+/* elegant script weekday that overlaps the clock (Wallpaper-Engine look) */
+.script {
+  --script-font: "Snell Roundhand", "Apple Chancery", "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
+  font-family: var(--script-font);
+  font-size: clamp(54px, 7vw, 132px);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  margin-top: -0.62em;
+  transform: rotate(-6deg);
+  color: color-mix(in oklab, var(--tod-ink, #fff) 92%, transparent);
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+.quote {
+  position: absolute;
+  z-index: 6;
+  left: 3.4vw;
+  bottom: calc(4.2vh + 108px);
+  max-width: 36vw;
+  margin: 0;
+  font-size: clamp(12px, 0.95vw, 15px);
+  letter-spacing: 0.06em;
+  opacity: 0.78;
+  pointer-events: none;
+}
+.quote::before { content: "“ "; opacity: 0.6; }
+.nowPlaying {
+  position: absolute;
+  z-index: 6;
+  left: 3.2vw;
+  bottom: 4.2vh;
+}
+.saver .quote { display: none; }
+
+.dot {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, white 18%, transparent);
+  border: 1px solid color-mix(in oklab, white 35%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.dot:hover { transform: translateY(-2px) scale(1.08); background: color-mix(in oklab, white 32%, transparent); }
+.dot svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.dotBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  line-height: 15px;
+  background: #ff5f7e;
+  color: #fff;
+}
+.grainSoft { opacity: 0.13; }
+
+/* ================================================================ C. 海 */
+
+.sea { background: #0d1a2b; color: #f4f6f8; }
+.seaPhoto {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  /* the platform tip sits at 70% of the photo height → keep it at 70% of the screen */
+  background-position: 50% 70%;
+  transition: opacity 60s linear;
+  filter: saturate(0.88) contrast(1.02);
+}
+.seaTint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, color-mix(in oklab, var(--tod-glow) 40%, transparent), transparent 40%, color-mix(in oklab, var(--tod-base) 35%, transparent));
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.seaVignette {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(5, 10, 20, 0.35));
+}
+.seaHead {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 17vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(5, 15, 35, 0.35), 0 2px 30px rgba(5, 15, 35, 0.45);
+}
+.seaGreet { font-size: clamp(13px, 1.05vw, 17px); font-weight: 600; letter-spacing: 0.32em; opacity: 0.92; }
+.seaTime {
+  font-family: var(--clock-font);
+  font-size: clamp(80px, 9.5vw, 190px);
+  font-weight: 100;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.06em;
+}
+.seaScript { font-size: clamp(42px, 5vw, 96px); margin-top: -0.55em; --tod-ink: #ffffff; }
+.seaDate { font-size: clamp(11px, 0.85vw, 14px); letter-spacing: 0.4em; opacity: 0.7; margin-top: 0.6em; }
+/* 小喵 small-to-medium, feet on the platform just behind its tip (tip = 70vh) */
+.seaPetSlot {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 25vh;
+  width: 26vh;
+  height: 36vh;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 10px 18px rgba(0, 10, 25, 0.35));
+}
+.seaPetSlot > * { width: 100%; height: 100%; }
+.seaPlaying { position: absolute; z-index: 6; right: 3vw; bottom: 4vh; width: 320px; }
+.seaQuote { bottom: 4.6vh; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
+.seaDots {
+  position: absolute;
+  z-index: 6;
+  right: 3vw;
+  top: 4vh;
+  display: flex;
+  gap: 10px;
+}
+
+/* ================================================================ D. 极简标语 */
+
+.slogan { background: #050b16; color: #e9edf5; }
+.sloganBg {
+  position: absolute;
+  inset: -2%;
+  background:
+    linear-gradient(180deg, rgba(4, 10, 24, 0.55), rgba(3, 8, 20, 0.35) 45%, rgba(2, 6, 14, 0.75)),
+    url(/scenes/sea/sea-night.webp) 50% 16% / auto 165%;
+  filter: saturate(1.25) hue-rotate(-6deg) brightness(0.9);
+  animation: sloganSwell 30s ease-in-out infinite alternate;
+}
+@keyframes sloganSwell { from { transform: scale(1.02); } to { transform: scale(1.07) translateY(-1%); } }
+.sloganTop {
+  position: absolute;
+  z-index: 5;
+  left: 4vw;
+  top: 4.5vh;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-family: var(--clock-font);
+  font-size: clamp(22px, 2vw, 34px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+.sloganDate { font-size: 0.42em; letter-spacing: 0.3em; opacity: 0.6; }
+.sloganText {
+  position: absolute;
+  z-index: 5;
+  left: 6vw;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 54vw;
+  margin: 0;
+  font-family: "Arial Black", "Helvetica Neue", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-weight: 900;
+  font-size: clamp(48px, 6.4vw, 136px);
+  line-height: 1.04;
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+  color: #f7c548;
+  text-shadow: 0 6px 40px rgba(247, 197, 72, 0.18);
+  overflow-wrap: anywhere;
+}
+.sloganPetSlot {
+  position: absolute;
+  z-index: 4;
+  right: 6vw;
+  bottom: 0;
+  width: min(54vh, 36vw);
+  height: 78vh;
+}
+.sloganPetSlot > * { width: 100%; height: 100%; }
+.sloganPlaying { position: absolute; z-index: 6; left: 6vw; bottom: 12vh; width: 320px; }
+.sloganQuote { left: 6vw; bottom: 5vh; color: #c9d3e6; }
+.sloganDots { position: absolute; z-index: 6; right: 3vw; top: 4vh; display: flex; gap: 10px; }
+
+.seaDots .dot, .sloganDots .dot {
+  background: rgba(8, 18, 32, 0.32);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
