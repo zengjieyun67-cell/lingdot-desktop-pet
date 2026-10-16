@@ -286,6 +286,12 @@ pub struct AppSettings {
     pub touch_voice: bool,
     /// Start the lingdot screen saver after this many idle minutes (0 = never).
     pub screensaver_idle_mins: u32,
+    /// 屏保显示便签: show at most two pinned notes, very faintly, on the screen saver.
+    pub screensaver_notes: bool,
+    /// Extra folder shortcuts on the desktop (absolute paths; 下载/文稿/桌面/应用程序 are built in).
+    pub desktop_folders: Vec<String>,
+    /// Weather widget on the desktop (rough IP location + open-meteo, no key).
+    pub desktop_weather: bool,
 }
 
 /// Pet size range (multiplier of the 200×240 base window).
@@ -353,6 +359,9 @@ impl Default for AppSettings {
             desktop_script_weekday: true,
             touch_voice: true,
             screensaver_idle_mins: 0,
+            screensaver_notes: false,
+            desktop_folders: Vec::new(),
+            desktop_weather: true,
         }
     }
 }
@@ -419,6 +428,15 @@ impl AppSettings {
         }
         self.desktop_slogan = self.desktop_slogan.chars().filter(|c| !c.is_control()).take(40).collect();
         self.screensaver_idle_mins = self.screensaver_idle_mins.min(240);
+        let mut folders: Vec<String> = Vec::new();
+        for f in self.desktop_folders.iter() {
+            let f = f.trim().trim_end_matches('/').to_string();
+            if f.starts_with('/') && f.len() > 1 && f.chars().count() <= 500 && !f.chars().any(|c| c.is_control()) && !folders.contains(&f) {
+                folders.push(f);
+            }
+        }
+        folders.truncate(8);
+        self.desktop_folders = folders;
         self
     }
 }
