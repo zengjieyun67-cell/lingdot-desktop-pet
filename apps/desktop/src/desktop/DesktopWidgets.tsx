@@ -3,10 +3,11 @@ import { api, on } from "../api/client";
 import type { DesktopFolder, DesktopStyle, SystemStats, Weather } from "../api/types";
 import { PinnedNotes } from "../notes/PinnedNotes";
 import w from "./DesktopWidgets.module.css";
+import { FILE_MANAGER } from "../lib/platform";
 
 /**
  * 桌面模式 extras around the edges (the character keeps the centre, the sea keeps its negative space):
- * weather + date + mini month (+ battery / CPU), transparent line-art folder shortcuts that open in Finder,
+ * weather + date + mini month (+ battery / CPU), frosted-glass folder tiles (glyph inside, label below) that open in Finder / Explorer,
  * and pinned 便签. On the screen saver only the (opt-in, very faint) pinned notes remain.
  */
 
@@ -170,12 +171,13 @@ function WeatherCalendar({ now }: { now: Date }) {
   );
 }
 
+/** 24×24 glyphs drawn at the shared icon stroke, centred in the glass tile. */
 const FOLDER_GLYPH: Record<DesktopFolder["kind"], ReactNode> = {
-  downloads: <path d="M24 17v9M20 22.5l4 4 4-4" />,
-  documents: <path d="M19.5 19.5h9M19.5 23h9M19.5 26.5h6" />,
-  desktop: <path d="M18.5 18.5h11v7h-11zM22 28.5h4" />,
-  applications: <path d="M24 18l1.6 3.2 3.4.5-2.5 2.4.6 3.4-3.1-1.6-3.1 1.6.6-3.4-2.5-2.4 3.4-.5z" />,
-  custom: <circle cx="24" cy="22.5" r="2.2" />,
+  downloads: <path d="M12 4.5v10.5M7.5 10.5 12 15l4.5-4.5M5.5 19.5h13" />,
+  documents: <path d="M7 3.5h6.5l4 4V20.5H7zM13.5 3.5v4h4M9.5 12h5M9.5 15.5h5" />,
+  desktop: <path d="M4 5.5h16v10.5H4zM9 19.5h6M12 16v3.5" />,
+  applications: <path d="M5 5h5.5v5.5H5zM13.5 5H19v5.5h-5.5zM5 13.5h5.5V19H5zM13.5 13.5H19V19h-5.5z" />,
+  custom: <path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />,
 };
 
 function FolderShortcuts({ className }: { className?: string }) {
@@ -199,14 +201,14 @@ function FolderShortcuts({ className }: { className?: string }) {
           key={f.path}
           type="button"
           className={`${w.folder} ${f.exists ? "" : w.folderMissing}`}
-          title={f.exists ? `在访达中打开 ${f.path}` : `找不到 ${f.path}`}
+          title={f.exists ? `在${FILE_MANAGER}中打开 ${f.path}` : `找不到 ${f.path}`}
           onClick={() => void api.openDesktopFolder(f.path).catch(() => undefined)}
         >
-          <svg viewBox="0 0 48 40" className={w.folderIcon} aria-hidden>
-            <path className={w.folderBack} d="M5.5 9.5a3 3 0 0 1 3-3h9.2l3.4 3.4h18.4a3 3 0 0 1 3 3V31a3 3 0 0 1-3 3h-31a3 3 0 0 1-3-3z" />
-            <path className={w.folderLip} d="M5.5 14.5h37" />
-            <g transform="translate(0 -1)">{FOLDER_GLYPH[f.kind]}</g>
-          </svg>
+          <span className={w.folderTile} data-kind={f.kind}>
+            <svg viewBox="0 0 24 24" className={w.folderIcon} aria-hidden>
+              {FOLDER_GLYPH[f.kind]}
+            </svg>
+          </span>
           <span className={w.folderLabel}>{f.name}</span>
         </button>
       ))}
