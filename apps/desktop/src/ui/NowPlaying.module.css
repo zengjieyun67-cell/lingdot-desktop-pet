@@ -1,67 +1,61 @@
+/* Now Playing — the shared frosted-glass material (same sheet as widgets / notes / panel). */
 .card {
-  --glass: rgba(255, 255, 255, 0.16);
+  composes: glass from global;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
+  gap: var(--sp-3);
   width: min(380px, 100%);
   padding: 12px 14px 12px 12px;
-  border-radius: 24px;
-  color: #fff;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(170, 200, 255, 0.12));
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  box-shadow: 0 18px 40px rgba(20, 40, 110, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(26px) saturate(170%);
-  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border-radius: var(--r-lg);
 }
 .art {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
-  transform: rotate(-8deg);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.85), transparent 45%),
-    linear-gradient(140deg, #8fb6ff, #6f7cff 50%, #ff9ad5);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 22px rgba(60, 80, 200, 0.35);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 50%),
+    linear-gradient(140deg, #ff6fa0, #a78bfa 55%, #5ac8fa);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.18);
 }
-.note { font-size: 24px; color: #fff; text-shadow: 0 2px 8px rgba(40, 40, 140, 0.4); }
+.note { font-size: 22px; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
 .meta { min-width: 0; }
-.kicker { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kicker { font-size: 10.5px; font-weight: 600; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title {
-  font-size: 19px;
-  font-weight: 600;
-  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 650;
   letter-spacing: -0.01em;
-  margin-top: 2px;
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.artist { font-size: 12.5px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar { height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); margin-top: 8px; overflow: hidden; }
-.bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: #fff; animation: prog 24s linear infinite; }
+.artist { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { height: 3px; border-radius: 3px; background: var(--fill-3); margin-top: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: var(--ink-2); animation: prog 24s linear infinite; }
 @keyframes prog { from { width: 6%; } to { width: 96%; } }
 .play {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 35% 30%, #fff, #e7eeff);
-  box-shadow: 0 8px 20px rgba(40, 60, 160, 0.3), 0 0 0 6px rgba(255, 255, 255, 0.18);
+  background: var(--fill-2);
+  color: var(--ink);
 }
-.play svg { width: 18px; height: 18px; fill: #3a4bb5; }
+.play svg { width: 15px; height: 15px; fill: currentColor; }
 
-.compact { padding: 9px 10px; gap: 10px; border-radius: 18px; }
-.compact .art { width: 42px; height: 42px; border-radius: 12px; }
-.compact .title { font-size: 15px; }
-.compact .play { width: 36px; height: 36px; }
-/* On light surfaces (panel): a blue frosted tile so the white type keeps its contrast. */
+.compact { padding: 9px 10px; gap: 10px; border-radius: var(--r-md); }
+.compact .art { width: 40px; height: 40px; border-radius: 9px; }
+.compact .title { font-size: 14px; }
+.compact .play { width: 32px; height: 32px; }
+/* inside the panel sheet: a grouped row on the glass, not glass-on-glass */
 .onLight {
-  background: linear-gradient(135deg, rgba(92, 128, 240, 0.92), rgba(130, 160, 255, 0.86) 55%, rgba(196, 150, 245, 0.86));
-  border-color: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 12px 28px rgba(60, 90, 200, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: var(--fill-1);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 var(--glass-top), var(--card-shadow);
 }
