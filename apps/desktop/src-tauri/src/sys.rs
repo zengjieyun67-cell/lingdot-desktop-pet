@@ -1,5 +1,5 @@
-#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
-//! Small helpers for running macOS command-line tools safely (no shell, with a timeout).
+#![cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+//! Small helpers for running macOS / Windows command-line tools safely (no shell, with a timeout).
 
 use std::io::Read;
 use std::process::{Command, Stdio};
@@ -8,7 +8,13 @@ use std::time::{Duration, Instant};
 /// Run `program args…` and return stdout when it exits successfully within `timeout`.
 /// The child is killed on timeout (e.g. an AppleScript waiting on a permission prompt).
 pub fn run_with_timeout(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
-    let mut child = Command::new(program)
+    let mut cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW: no console flash for powershell / wmic
+    }
+    let mut child = cmd
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
