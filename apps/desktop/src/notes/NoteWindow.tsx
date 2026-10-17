@@ -6,6 +6,7 @@ import { ColorDots, IconBtn, tintVars } from "./NoteParts";
 import { checkStats, fromLocalInput, remindLabel, toLocalInput } from "./noteText";
 import { useNotes } from "./useNotes";
 import s from "./Notes.module.css";
+import { Icon } from "../ui/Icon";
 
 const MIN_W = 180;
 const MIN_H = 140;
@@ -55,7 +56,7 @@ export function NoteWindow({ id }: { id: string }) {
         <NoteBody note={note} startEditing={!note.content} />
       </div>
       <footer className={s.foot}>
-        {note.remindAt && !note.reminded ? <span className={s.footRemind}>⏰ {remindLabel(note.remindAt)}</span> : null}
+        {note.remindAt && !note.reminded ? <span className={s.footRemind}><Icon name="bell" className={s.miniBell} />{remindLabel(note.remindAt)}</span> : null}
         {stats.total > 0 && (
           <span>
             ✓ {stats.done}/{stats.total}
