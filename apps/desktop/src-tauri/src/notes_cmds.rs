@@ -36,6 +36,18 @@ pub fn local_tz_offset_secs() -> i64 {
             }
         }
     }
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(out) = crate::sys::run_with_timeout(
+            "powershell.exe",
+            &["-NoProfile", "-NonInteractive", "-Command", "[int][System.TimeZoneInfo]::Local.GetUtcOffset([DateTime]::Now).TotalSeconds"],
+            std::time::Duration::from_secs(4),
+        ) {
+            if let Ok(v) = out.trim().parse::<i64>() {
+                return v;
+            }
+        }
+    }
     0
 }
 
@@ -143,9 +155,10 @@ pub fn open_note_window(app: &AppHandle, id: &str) {
     let Ok(n) = app.state::<AppState>().engine.db().get_note(id) else { return };
     let (w, h) = clamp_note_size(n.w, n.h);
     let effects = tauri::window::EffectsBuilder::new()
-        .effect(tauri::window::Effect::Popover)
+        .effect(tauri::window::Effect::Popover) // macOS vibrancy
+        .effect(tauri::window::Effect::Acrylic) // Windows 10/11 (each OS picks the first effect it supports)
         .state(tauri::window::EffectState::Active)
-        .radius(18.0)
+        .radius(16.0)
         .build();
     let built = tauri::WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App(format!("index.html#/note/{id}").into()))
         .title("便签")
