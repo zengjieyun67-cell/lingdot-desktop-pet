@@ -53,6 +53,7 @@ function PetSizeControl() {
       </div>
       <input
         className={s.slider}
+        style={{ ["--fill" as string]: `${((value - PET_SCALE_MIN) / (PET_SCALE_MAX - PET_SCALE_MIN)) * 100}%` }}
         type="range"
         min={PET_SCALE_MIN}
         max={PET_SCALE_MAX}
