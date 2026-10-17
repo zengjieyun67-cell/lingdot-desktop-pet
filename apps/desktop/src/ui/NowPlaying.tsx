@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import styles from "./NowPlaying.module.css";
 
 export interface NowPlayingInfo {
@@ -15,7 +16,7 @@ export function NowPlaying({ music, compact = false, onLight = false, className 
   return (
     <div className={`${styles.card} ${compact ? styles.compact : ""} ${onLight ? styles.onLight : ""} ${className}`}>
       <div className={styles.art} aria-hidden>
-        <span className={styles.note}>♪</span>
+        <Icon name="music" className={styles.note} />
       </div>
       <div className={styles.meta}>
         <div className={styles.kicker}>Now Playing · {music.app}</div>
