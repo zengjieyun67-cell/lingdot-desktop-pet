@@ -1,11 +1,23 @@
-/* 便签 — the shared frosted-glass material with a gentle colour tint (--note-tint) on top.
-   Same sheet in every place a note appears: floating window, panel tab, desktop card. */
+/* 便签 — the SAME neutral frosted glass as the weather widget. Colour is only an accent:
+   the dot, a barely-there wash (--note-tint, 4–6%), a soft glow in the top-left corner and a
+   thin fading accent line along the top edge. Same sheet everywhere a note appears:
+   floating window, panel tab, desktop card, screensaver. */
 
 .tinted {
   composes: glass from global;
+  --note-glow: color-mix(in srgb, var(--note-dot) 11%, transparent);
+  --note-line: color-mix(in srgb, var(--note-dot) 75%, transparent);
   --glass-tint: var(--note-tint);
+  --glass-accent:
+    linear-gradient(90deg, var(--note-line), transparent 75%) 0 0 / 100% 2px no-repeat,
+    radial-gradient(90% 70% at 0% 0%, var(--note-glow), transparent 60%);
 }
-@media (prefers-color-scheme: dark) { .tinted { --glass-tint: var(--note-tint-dark); } }
+@media (prefers-color-scheme: dark) {
+  .tinted {
+    --glass-tint: var(--note-tint-dark);
+    --note-glow: color-mix(in srgb, var(--note-dot) 14%, transparent);
+  }
+}
 
 /* ------------------------------------------------------------ floating window (#/note/<id>) */
 .window {
@@ -201,9 +213,22 @@
 }
 .card:hover { box-shadow: inset 0 1px 0 var(--glass-top), var(--card-shadow-hover); }
 .cardOpen {
-  background: var(--glass-sheen), linear-gradient(var(--note-tint), var(--note-tint)), var(--fill-1);
+  --note-glow: color-mix(in srgb, var(--note-dot) 10%, transparent);
+  --note-line: color-mix(in srgb, var(--note-dot) 75%, transparent);
+  background:
+    linear-gradient(90deg, var(--note-line), transparent 75%) 0 0 / 100% 2px no-repeat,
+    radial-gradient(70% 90% at 0% 0%, var(--note-glow), transparent 60%),
+    var(--glass-sheen), linear-gradient(var(--note-tint), var(--note-tint)), var(--fill-1);
 }
-@media (prefers-color-scheme: dark) { .cardOpen { background: var(--glass-sheen), linear-gradient(var(--note-tint-dark), var(--note-tint-dark)), var(--fill-1); } }
+@media (prefers-color-scheme: dark) {
+  .cardOpen {
+    --note-glow: color-mix(in srgb, var(--note-dot) 13%, transparent);
+    background:
+      linear-gradient(90deg, var(--note-line), transparent 75%) 0 0 / 100% 2px no-repeat,
+      radial-gradient(70% 90% at 0% 0%, var(--note-glow), transparent 60%),
+      var(--glass-sheen), linear-gradient(var(--note-tint-dark), var(--note-tint-dark)), var(--fill-1);
+  }
+}
 .cardDone .cardTitle { text-decoration: line-through; color: var(--ink-3); }
 .cardHead { display: flex; align-items: center; gap: var(--sp-2); padding: 10px 8px 10px 12px; cursor: pointer; }
 .cardStripe { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--note-dot); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15); }
@@ -270,7 +295,8 @@
 .miniBar .iconBtn { width: 22px; height: 22px; }
 .miniTag { font-size: 11px; font-weight: 600; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
 .miniTag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--note-dot); }
-.miniRemind { font-size: 11px; font-weight: 600; color: var(--red); }
+.miniRemind { font-size: 11px; font-weight: 600; color: var(--red); display: inline-flex; align-items: center; gap: 6px; }
+.miniRemind::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--note-dot); }
 .miniBody {
   max-height: 150px;
   overflow: auto;
