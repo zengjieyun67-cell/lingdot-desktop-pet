@@ -12,6 +12,7 @@ import { checkStats, matchesQuery, noteTitle, parseNote, remindLabel } from "./n
 import { useNotes } from "./useNotes";
 import s from "./Notes.module.css";
 import { NEW_NOTE_KEY } from "../lib/platform";
+import { Icon } from "../ui/Icon";
 
 const UNDO_MS = 6000;
 
@@ -104,7 +105,7 @@ export function NotesView() {
                     {!isOpen && preview && <div className={s.cardPreview}>{preview}</div>}
                     <div className={s.cardMeta}>
                       <span>{relTime(n.updatedAt)}</span>
-                      {n.remindAt && !n.reminded && <span className={s.metaRemind}>⏰ {remindLabel(n.remindAt)}</span>}
+                      {n.remindAt && !n.reminded && <span className={s.metaRemind}><Icon name="bell" className={s.miniBell} />{remindLabel(n.remindAt)}</span>}
                       {st.total > 0 && (
                         <span>
                           ✓ {st.done}/{st.total}
