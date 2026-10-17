@@ -23,7 +23,7 @@ function Meter({ value }: { value: number }) {
   // A level gauge for a 0..100 score (affinity / familiarity) — not task progress.
   return (
     <span style={{ display: "inline-block", width: 70, height: 6, borderRadius: 6, background: "var(--accent-soft)", overflow: "hidden" }}>
-      <span style={{ display: "block", height: "100%", width: `${Math.max(0, Math.min(100, value))}%`, background: "linear-gradient(90deg,#ffb59e,#ff8aa1)" }} />
+      <span style={{ display: "block", height: "100%", width: `${Math.max(0, Math.min(100, value))}%`, background: "var(--accent)" }} />
     </span>
   );
 }
