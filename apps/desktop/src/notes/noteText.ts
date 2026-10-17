@@ -75,13 +75,16 @@ export const COLOR_LABEL: Record<NoteColor, string> = {
   sky: "天空",
 };
 
-/** Gentle colour tint (light, dark) per preset, laid over the shared frosted-glass fill (never flat paper). */
+/**
+ * Note colour is only an ACCENT on the same neutral frosted glass as the weather widget:
+ * `dot` (colour dot, top line, corner glow) + a barely-there wash (4% light / 6% dark) over the glass fill.
+ */
 export const COLOR_TINT: Record<NoteColor, { light: string; dark: string; dot: string }> = {
-  yellow: { light: "rgba(255, 228, 140, 0.42)", dark: "rgba(255, 196, 60, 0.15)", dot: "#ffd60a" },
-  pink: { light: "rgba(255, 196, 216, 0.4)", dark: "rgba(255, 85, 140, 0.15)", dot: "#ff6fa0" },
-  mint: { light: "rgba(184, 238, 210, 0.4)", dark: "rgba(48, 209, 140, 0.13)", dot: "#34d399" },
-  lavender: { light: "rgba(212, 202, 255, 0.42)", dark: "rgba(150, 125, 255, 0.16)", dot: "#a78bfa" },
-  sky: { light: "rgba(186, 222, 255, 0.42)", dark: "rgba(64, 156, 255, 0.15)", dot: "#5ac8fa" },
+  yellow: { light: "rgba(255, 204, 0, 0.04)", dark: "rgba(255, 204, 0, 0.06)", dot: "#ffcc00" },
+  pink: { light: "rgba(255, 92, 150, 0.04)", dark: "rgba(255, 92, 150, 0.06)", dot: "#ff6fa0" },
+  mint: { light: "rgba(52, 199, 140, 0.04)", dark: "rgba(52, 199, 140, 0.06)", dot: "#34d399" },
+  lavender: { light: "rgba(150, 120, 255, 0.04)", dark: "rgba(150, 120, 255, 0.06)", dot: "#a78bfa" },
+  sky: { light: "rgba(64, 170, 255, 0.04)", dark: "rgba(64, 170, 255, 0.06)", dot: "#5ac8fa" },
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
