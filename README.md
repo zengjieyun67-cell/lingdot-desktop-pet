@@ -23,10 +23,11 @@
 | --- | --- |
 | Mac（Apple Silicon，M1–M4） | `lingdot-desktop-pet_*_aarch64.dmg` |
 | Mac（Intel） | `lingdot-desktop-pet_*_x64.dmg` |
-| Windows 10 / 11（x64） | `lingdot-desktop-pet_*_x64-setup.exe`（推荐）或 `*_x64_en-US.msi` |
+| Windows 10 / 11（x64） | `lingdot-desktop-pet_*_x64-setup.exe`（推荐）、`*_x64_en-US.msi`，或免安装的 `lingdot-desktop-pet_x64-portable.exe`（双击即用） |
 
 - **Mac**：打开 `.dmg`，把 lingdot-desktop-pet 拖进「应用程序」，第一次**右键 → 打开 → 打开**。
 - **Windows**：双击 `-setup.exe`。安装包没有付费代码签名，Windows SmartScreen 会提示「Windows 已保护你的电脑」：点 **更多信息 → 仍要运行** 即可（这是未签名应用的正常提示）。缺 WebView2 时安装程序会自动下载。
+  - 免安装版：把 `lingdot-desktop-pet_x64-portable.exe` 放进任意文件夹双击即可。想让她直接用你自己的 Live2D 模型，把模型文件夹（含 `.model3.json`）和 `live2dcubismcore.min.js` 放在 exe 旁边，首次启动会自动导入。若杀毒软件把 exe 删了，到 Windows 安全中心 →「保护历史记录」里还原 / 允许。
   - Windows 上：便签快捷键是 **Ctrl+Shift+N**；文件夹快捷方式用「资源管理器」打开（下载 / 文档 / 桌面 / 开始菜单）；小喵的语音用系统语音（慧慧 / 瑶瑶）朗读；**语音识别、听歌检测暂时只支持 macOS**；面板和浮动便签用 Windows 的亚克力（Acrylic）磨砂效果。
 
 ### 1. 或者：从源码一键构建（Mac）
