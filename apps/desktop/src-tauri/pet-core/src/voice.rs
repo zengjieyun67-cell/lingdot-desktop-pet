@@ -222,7 +222,8 @@ pub fn chinese_voices(all: Vec<SystemVoice>) -> Vec<SystemVoice> {
 
 /// Cute default: 婷婷 (Tingting) > 美佳 (Meijia) > Lili > Yu-shu > any zh_CN > any zh.
 pub fn pick_default_voice(voices: &[SystemVoice]) -> Option<String> {
-    for pref in ["Tingting", "Meijia", "Lili", "Yu-shu", "Shasha"] {
+    // macOS voices first (unchanged), then the Windows SAPI ones (Huihui / Yaoyao / Hanhan …)
+    for pref in ["Tingting", "Meijia", "Lili", "Yu-shu", "Shasha", "Microsoft Xiaoxiao", "Microsoft Huihui", "Microsoft Yaoyao", "Microsoft Hanhan"] {
         if let Some(v) = voices.iter().find(|v| v.name == pref || v.name.starts_with(&format!("{pref} "))) {
             return Some(v.name.clone());
         }
@@ -236,6 +237,29 @@ pub fn say_rate_wpm(multiplier: f64) -> u32 {
     (185.0 * m).round() as u32
 }
 
+/// Parse the PowerShell System.Speech listing used on Windows: one `Name|zh-CN` per line.
+pub fn parse_sapi_voices(output: &str) -> Vec<SystemVoice> {
+    output
+        .lines()
+        .filter_map(|l| {
+            let (name, culture) = l.trim().split_once('|')?;
+            let name = name.trim();
+            let culture = culture.trim();
+            if name.is_empty() || culture.len() < 2 {
+                return None;
+            }
+            Some(SystemVoice { name: name.to_string(), locale: culture.replace('-', "_"), sample: String::new() })
+        })
+        .collect()
+}
+
+/// SAPI `SpeechSynthesizer.Rate` (-10..=10) for a speed multiplier (1.0 = 0).
+pub fn sapi_rate(multiplier: f64) -> i32 {
+    let m = if multiplier.is_finite() { multiplier.clamp(0.5, 2.0) } else { 1.0 };
+    let r = if m >= 1.0 { (m - 1.0) * 10.0 } else { (m - 1.0) * 20.0 };
+    (r.round() as i32).clamp(-10, 10)
+}
+
 /// Keep the voice-chat context short (last `keep` messages).
 pub fn trim_history<T: Clone>(history: &[T], keep: usize) -> Vec<T> {
     let n = history.len();
@@ -244,6 +268,20 @@ pub fn trim_history<T: Clone>(history: &[T], keep: usize) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sapi_voices_and_rate() {
+        let v = parse_sapi_voices("Microsoft Huihui Desktop|zh-CN\r\nMicrosoft Zira Desktop|en-US\r\n\r\nbroken");
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0].locale, "zh_CN");
+        let zh = chinese_voices(v);
+        assert_eq!(zh.len(), 1);
+        assert_eq!(pick_default_voice(&zh).as_deref(), Some("Microsoft Huihui Desktop"));
+        assert_eq!(sapi_rate(1.0), 0);
+        assert_eq!(sapi_rate(2.0), 10);
+        assert_eq!(sapi_rate(0.5), -10);
+        assert_eq!(sapi_rate(f64::NAN), 0);
+    }
+
     use super::*;
 
     #[test]
