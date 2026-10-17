@@ -19,6 +19,7 @@ const STYLE_DESC: Record<string, string> = {
   slogan: "极简标语：深色海面纹理 + 一句加粗的黄色标语（可以改成你想说的话）",
 };
 import s from "./Panel.module.css";
+import { FILE_MANAGER, IS_WINDOWS } from "../lib/platform";
 
 function Row({ title, desc, children }: { title: string; desc?: ReactNode; children: ReactNode }) {
   return (
@@ -47,6 +48,7 @@ function Slider(props: { title: string; desc: string; value: number; min: number
       </div>
       <input
         className={s.slider}
+        style={{ ["--fill" as string]: `${((v - props.min) / (props.max - props.min || 1)) * 100}%` }}
         type="range"
         min={props.min}
         max={props.max}
@@ -93,12 +95,12 @@ export function VoiceSettings() {
     <>
       <div className={s.sectionTitle}>语音对话</div>
       <div className={s.group}>
-        <Row title="开启语音" desc={`用 macOS 自带的语音识别和系统语音，和${settings.petName}说话，免费`}>
+        <Row title="开启语音" desc={IS_WINDOWS ? `用 Windows 自带的系统语音朗读${settings.petName}的回复（语音识别暂时只支持 macOS）` : `用 macOS 自带的语音识别和系统语音，和${settings.petName}说话，免费`}>
           <Toggle checked={settings.voiceEnabled} onChange={(v) => saveSettings({ voiceEnabled: v })} />
         </Row>
         <div className={`${s.row} ${s.rowStack}`}>
           <div className={s.rowDesc} style={{ lineHeight: 1.6 }}>
-            🎙️ 第一次使用时 macOS 会询问「麦克风」和「语音识别」权限，请点允许。
+            {IS_WINDOWS ? "🔈 Windows 上用「讲述人」同款的系统语音（慧慧 / 瑶瑶等）朗读。" : "🎙️ 第一次使用时 macOS 会询问「麦克风」和「语音识别」权限，请点允许。"}
             <br />
             用法：长按桌宠说话，松手就发送；或在「聊天」里打开「实时对话」，像打电话一样一直聊。
             {!settings.chatEnabled && (
@@ -150,7 +152,7 @@ export function VoiceSettings() {
         <Row title="可以打断她" desc={`${settings.petName}说话时你开口，她会停下来听`}>
           <Toggle checked={settings.voiceBargeIn} disabled={off} onChange={(v) => saveSettings({ voiceBargeIn: v })} />
         </Row>
-        <Row title="优先本机识别" desc="设备支持时在本机识别，不上传声音（需要 macOS 下载过语音包）">
+        <Row title="优先本机识别" desc="设备支持时在本机识别，不上传声音（需要系统下载过语音包）">
           <Toggle checked={settings.voiceOnDevice} disabled={off} onChange={(v) => saveSettings({ voiceOnDevice: v })} />
         </Row>
       </div>
@@ -298,7 +300,7 @@ function DesktopFoldersRow() {
   return (
     <div className={`${s.row} ${s.rowStack}`}>
       <div className={s.rowTitle}>桌面文件夹</div>
-      <div className={s.rowDesc}>下载 / 文稿 / 桌面 / 应用程序 已经在桌面上；再加几个常用的（最多 8 个），点一下用访达打开</div>
+      <div className={s.rowDesc}>{IS_WINDOWS ? "下载 / 文档 / 桌面 / 开始菜单" : "下载 / 文稿 / 桌面 / 应用程序"} 已经在桌面上；再加几个常用的（最多 8 个），点一下用{FILE_MANAGER}打开</div>
       {custom.map((f) => (
         <div key={f.path} className={s.inline} style={{ justifyContent: "space-between" }}>
           <span title={f.path} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
