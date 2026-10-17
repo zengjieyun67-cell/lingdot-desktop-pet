@@ -15,46 +15,47 @@
 /* ------------------------------------------------------------ left column (Sonoma / 海) */
 .left {
   position: absolute;
-  left: 3vw;
-  top: 4.4vh;
+  left: var(--edge);
+  top: var(--edge);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
-  width: 214px;
-  max-height: calc(100vh - 4.4vh - 200px);
+  gap: var(--gutter);
+  width: var(--col);
+  max-height: calc(100vh - 2 * var(--edge) - 72px);
   pointer-events: none;
 }
 .left > * { pointer-events: auto; }
 
 .card {
-  composes: glass from global;
-  width: 214px;
-  padding: 14px 14px 12px;
+  composes: glass glass-lift from global;
+  width: 100%;
+  padding: var(--sp-4);
   border-radius: var(--r-lg);
 }
 .wxRow { display: flex; align-items: center; gap: var(--sp-3); }
 .wxIcon { width: 34px; height: 34px; stroke-width: 1.5; color: var(--ink-2); flex: none; }
 .wxDay { width: 34px; text-align: center; font-size: 28px; font-weight: 300; flex: none; }
 .wxMain { min-width: 0; }
-.wxTemp { font-family: var(--font-display); font-size: 28px; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 8px; }
+.wxTemp { font-family: var(--font-display); font-size: 32px; font-weight: 250; line-height: 1; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
 .wxText { font-family: var(--font); font-size: 12px; font-weight: 590; letter-spacing: 0; color: var(--ink-2); }
-.wxSub { font-size: 11px; margin-top: 5px; color: var(--ink-3); line-height: 1.35; }
+.wxSub { font-size: 11px; margin-top: 6px; color: var(--ink-3); line-height: 1.35; font-variant-numeric: tabular-nums; }
 .calHead {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 12px 0 6px;
-  padding-top: 10px;
+  margin: var(--sp-4) 0 var(--sp-2);
+  padding-top: var(--sp-3);
   border-top: 0.5px solid var(--sep);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
 }
-.calTag { font-size: 10px; font-weight: 600; color: var(--accent); }
+.calTag { font-size: 10px; font-weight: 650; letter-spacing: 0.06em; color: var(--accent); }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 1px; text-align: center; font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .calDow { font-size: 9.5px; font-weight: 600; color: var(--ink-3); padding-bottom: 3px; }
-.calDay { height: 20px; line-height: 20px; color: var(--ink-2); border-radius: 50%; width: 20px; margin: 0 auto; }
-.calToday { color: #fff; font-weight: 700; background: var(--accent); }
-.stats { display: flex; gap: var(--sp-3); margin-top: 10px; padding-top: 9px; border-top: 0.5px solid var(--sep); font-size: 10.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.calDay { height: 22px; line-height: 22px; color: var(--ink-2); border-radius: 50%; width: 22px; margin: 0 auto; }
+.calToday { color: #fff; font-weight: 700; background: var(--accent); box-shadow: 0 2px 6px color-mix(in oklab, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.stats { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 0.5px solid var(--sep); font-size: 10.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .stats > span { display: inline-flex; align-items: center; gap: 4px; }
 .statIcon { width: 15px; height: 15px; }
 .fill { fill: currentColor; stroke: none; opacity: 0.8; }
@@ -62,17 +63,17 @@
 /* ------------------------------------------------------------ folder shortcuts: glass tile + glyph, label below */
 .folders {
   position: absolute;
-  right: 3vw;
-  top: calc(4vh + 56px);
+  right: var(--edge);
+  top: calc(var(--edge) + 56px);
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(5, auto);
   direction: rtl;           /* first column hugs the right edge, like Finder's desktop */
-  gap: 14px 10px;
+  gap: var(--gutter) 8px;
 }
 .folder {
   direction: ltr;
-  width: 76px;
+  width: 72px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -80,24 +81,26 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   cursor: pointer;
-  transition: transform 0.2s var(--spring);
+  transition: transform 0.35s var(--spring);
 }
 .folderTile {
   composes: glass from global;
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--r-md);
   display: grid;
   place-items: center;
   color: var(--ink-2);
   box-shadow: var(--glass-inner), var(--glass-shadow-sm);
-  transition: box-shadow 0.2s ease, color 0.2s ease;
+  transition: box-shadow 0.3s var(--ease-out), color 0.2s ease;
 }
 .folder:hover { transform: translateY(-2px); }
-.folder:hover .folderTile { color: var(--ink); box-shadow: var(--glass-inner), var(--glass-shadow); }
-.folder:active { transform: scale(0.95); }
+.folder:hover .folderTile { color: var(--ink); box-shadow: var(--glass-inner), var(--glass-shadow-lift); }
+.folder:active { transform: scale(0.94); transition-duration: 0.12s; }
+.folder:focus-visible { outline: none; }
+.folder:focus-visible .folderTile { box-shadow: var(--glass-inner), 0 0 0 3px color-mix(in oklab, white 70%, transparent), var(--glass-shadow-sm); }
 .folderIcon {
   width: 26px;
   height: 26px;
@@ -108,18 +111,19 @@
   stroke-linejoin: round;
 }
 .folderLabel {
-  font-size: 11.5px;
-  font-weight: 500;
-  max-width: 76px;
+  font-size: 11px;
+  font-weight: 590;
+  letter-spacing: 0.01em;
+  max-width: 72px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 0 8px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 10px rgba(0, 0, 0, 0.35);
 }
 .folderMissing { opacity: 0.45; }
 
 /* ------------------------------------------------------------ per-style placement */
-.layer[data-style="sonoma"] .folders { top: 4.4vh; }
+.layer[data-style="sonoma"] .folders { top: var(--edge); }
 /* 海: keep the pale sky empty — the folders sit on the water, under the horizon */
 .layer[data-style="sea"] .folders { top: 24vh; }
 .layer[data-style="poster"] { color: var(--p-ink, #1a1a1a); }
@@ -131,4 +135,4 @@
 .layer[data-style="slogan"] .notesAlt { left: 6vw; bottom: calc(4vh + 70px); flex-direction: row; align-items: flex-end; }
 
 /* screen saver: optional, faint, bottom-left */
-.saverNotes { position: absolute; left: 3.4vw; bottom: 5vh; flex-direction: row; align-items: flex-end; }
+.saverNotes { position: absolute; left: var(--edge); bottom: var(--edge); flex-direction: row; align-items: flex-end; }
