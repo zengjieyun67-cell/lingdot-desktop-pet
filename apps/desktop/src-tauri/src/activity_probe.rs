@@ -132,7 +132,21 @@ impl Probe {
         pet_core::activity::parse_hid_idle_secs(&out)
     }
 
-    #[cfg(not(target_os = "macos"))]
+    /// Windows: time since the last keyboard / mouse input (GetLastInputInfo).
+    #[cfg(target_os = "windows")]
+    fn idle_secs(&mut self) -> Option<u64> {
+        use windows_sys::Win32::System::SystemInformation::GetTickCount;
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+        let mut li = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+        // SAFETY: plain Win32 calls with a correctly sized out-struct.
+        if unsafe { GetLastInputInfo(&mut li) } == 0 {
+            return None;
+        }
+        let now = unsafe { GetTickCount() };
+        Some(u64::from(now.wrapping_sub(li.dwTime) / 1000))
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn idle_secs(&mut self) -> Option<u64> {
         None
     }
