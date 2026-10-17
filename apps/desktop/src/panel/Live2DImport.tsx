@@ -54,10 +54,10 @@ export function Live2DImportCard({ prominent }: { prominent: boolean }) {
       </div>
       <div className={s.l2dActions}>
         <Button variant="primary" disabled={!!busy} onClick={scan}>
-          {busy === "scan" ? "正在找…" : "✨ 一键导入我的 Live2D"}
+          {busy === "scan" ? "正在找…" : "一键导入我的 Live2D"}
         </Button>
         <Button disabled={!!busy} onClick={pick}>
-          {busy === "pick" ? "导入中…" : "📁 选择模型文件夹"}
+          {busy === "pick" ? "导入中…" : "选择模型文件夹…"}
         </Button>
       </div>
       <div className={s.inline} style={{ marginTop: 8 }}>
