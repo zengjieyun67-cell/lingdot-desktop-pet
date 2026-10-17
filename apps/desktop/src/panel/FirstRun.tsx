@@ -3,6 +3,7 @@ import { api, requestNotificationPermission } from "../api/client";
 import { usePanel } from "./PanelApp";
 import { Button } from "./ui";
 import s from "./Panel.module.css";
+import { OS_NAME } from "../lib/platform";
 
 /** First-run explanation: what the pet does, notification permission, pairing. */
 export function FirstRun() {
@@ -25,7 +26,7 @@ export function FirstRun() {
         <div>才不是特意来帮你的……只是顺便住在屏幕角落，在网页上的 AI 任务完成、失败或需要你处理时提醒你。（在设置 → 小喵 里可以改名字、称呼，或关闭对话气泡。）</div>
         <ul>
           <li>
-            <b>通知权限</b>：macOS 会询问是否允许「lingdot-desktop-pet」发送通知。允许后才能在其他窗口时收到提醒；拒绝也没关系，桌宠气泡和「通知」页仍会显示。
+            <b>通知权限</b>：{OS_NAME} 会询问是否允许「lingdot-desktop-pet」发送通知。允许后才能在其他窗口时收到提醒；拒绝也没关系，桌宠气泡和「通知」页仍会显示。
           </li>
           <li>
             <b>浏览器扩展</b>：加载扩展后，在扩展设置里粘贴「设置 → 浏览器扩展」中的配对码，并只授权你想监控的网站。
