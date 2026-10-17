@@ -185,8 +185,8 @@
 .lockSub {
   position: absolute;
   z-index: 5;
-  left: 3.2vw;
-  bottom: 4.2vh;
+  left: var(--edge);
+  bottom: var(--edge);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -212,8 +212,8 @@
 .dock {
   position: absolute;
   z-index: 6;
-  right: 3.2vw;
-  bottom: 4.2vh;
+  right: var(--edge);
+  bottom: var(--edge);
   display: flex;
   gap: 6px;
   composes: glass from global;
@@ -233,6 +233,7 @@
   transition: background 0.25s, transform 0.25s var(--spring);
 }
 .dockBtn:hover { background: var(--fill-2); transform: translateY(-2px); }
+.dockBtn:active { transform: scale(0.94); transition-duration: 0.12s; }
 .dockIcon { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: var(--icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
 .dockLabel { font-size: 10.5px; color: var(--ink-2); font-weight: 500; }
 .dockBadge {
@@ -483,16 +484,17 @@
 
 /* ================================================================ shared extras */
 
-/* elegant script weekday that overlaps the clock (Wallpaper-Engine look) */
+/* script weekday: a quiet signature UNDER the digits (it used to overlap them and fight for attention).
+   Hierarchy: eyebrow greeting → big thin time → script weekday → tracked date. */
 .script {
   --script-font: "Snell Roundhand", "Apple Chancery", "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
   font-family: var(--script-font);
-  font-size: clamp(54px, 7vw, 132px);
+  font-size: clamp(34px, 3.8vw, 72px);
   font-style: italic;
   font-weight: 400;
-  line-height: 1;
-  margin-top: -0.62em;
-  transform: rotate(-6deg);
+  line-height: 1.15;
+  margin-top: 0.08em;
+  transform: rotate(-3deg);
   color: color-mix(in oklab, var(--tod-ink, #fff) 92%, transparent);
   text-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
   pointer-events: none;
@@ -500,51 +502,54 @@
 .quote {
   position: absolute;
   z-index: 6;
-  left: 3.4vw;
-  bottom: calc(4.2vh + 108px);
+  left: var(--edge);
+  bottom: calc(var(--edge) + 96px);
   max-width: 36vw;
   margin: 0;
-  font-size: clamp(12px, 0.95vw, 15px);
-  letter-spacing: 0.06em;
-  opacity: 0.78;
+  font-size: clamp(12px, 0.9vw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
   pointer-events: none;
 }
 .quote::before { content: "“ "; opacity: 0.6; }
 .nowPlaying {
   position: absolute;
   z-index: 6;
-  left: 3.2vw;
-  bottom: 4.2vh;
+  left: var(--edge);
+  bottom: var(--edge);
 }
 .saver .quote { display: none; }
 
 .dot {
   composes: glass from global;
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--ink-2);
   box-shadow: var(--glass-inner), var(--glass-shadow-sm);
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition: transform 0.35s var(--spring), color 0.2s ease, box-shadow 0.3s var(--ease-out);
 }
-.dot:hover { transform: translateY(-1px) scale(1.06); color: var(--ink); }
+.dot:hover { transform: translateY(-2px); color: var(--ink); box-shadow: var(--glass-inner), var(--glass-shadow); }
+.dot:active { transform: scale(0.92); transition-duration: 0.12s; }
 .dot svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: var(--icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
 .dotBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 15px;
-  height: 15px;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   border-radius: 8px;
   font-size: 9.5px;
-  line-height: 15px;
+  line-height: 16px;
   background: var(--red);
   color: #fff;
   font-weight: 700;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85), 0 2px 4px rgba(0, 0, 0, 0.18);
 }
 .grainSoft { opacity: 0.13; }
 
@@ -593,25 +598,28 @@
   z-index: 5;
   left: 0;
   right: 0;
-  top: 17vh;
+  top: 13vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(5, 15, 35, 0.35), 0 2px 30px rgba(5, 15, 35, 0.45);
 }
-.seaGreet { font-size: clamp(13px, 1.05vw, 17px); font-weight: 600; letter-spacing: 0.32em; opacity: 0.92; }
+.seaGreet { font-size: clamp(12px, 0.9vw, 15px); font-weight: 650; letter-spacing: 0.32em; opacity: 0.95; padding-left: 0.32em; }
 .seaTime {
   font-family: var(--clock-font);
-  font-size: clamp(80px, 9.5vw, 190px);
+  font-size: clamp(88px, 10vw, 200px);
   font-weight: 100;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  letter-spacing: -0.035em;
+  line-height: 0.9;
   font-variant-numeric: tabular-nums;
-  margin-top: 0.06em;
+  font-feature-settings: "tnum", "ss01";
+  margin-top: 0.08em;
+  /* a touch of depth on the thin strokes so they hold against bright water */
+  text-shadow: 0 1px 2px rgba(5, 15, 35, 0.25), 0 8px 40px rgba(5, 15, 35, 0.35);
 }
-.seaScript { font-size: clamp(42px, 5vw, 96px); margin-top: -0.55em; --tod-ink: #ffffff; }
-.seaDate { font-size: clamp(11px, 0.85vw, 14px); letter-spacing: 0.4em; opacity: 0.7; margin-top: 0.6em; }
+.seaScript { font-size: clamp(30px, 3.2vw, 60px); --tod-ink: #ffffff; opacity: 0.94; }
+.seaDate { font-size: clamp(10px, 0.78vw, 13px); font-weight: 500; letter-spacing: 0.22em; opacity: 0.85; margin-top: 0.55em; padding-left: 0.22em; font-variant-numeric: tabular-nums; }
 /* 小喵 small-to-medium, feet on the platform just behind its tip (tip = 70vh) */
 .seaPetSlot {
   position: absolute;
@@ -624,15 +632,15 @@
   filter: drop-shadow(0 10px 18px rgba(0, 10, 25, 0.35));
 }
 .seaPetSlot > * { width: 100%; height: 100%; }
-.seaPlaying { position: absolute; z-index: 6; right: 3vw; bottom: 4vh; width: 320px; }
-.seaQuote { bottom: 4.6vh; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
+.seaPlaying { position: absolute; z-index: 6; right: var(--edge); bottom: var(--edge); width: 336px; }
+.seaQuote { left: var(--edge); bottom: calc(var(--edge) + 4px); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
 .seaDots {
   position: absolute;
   z-index: 6;
-  right: 3vw;
-  top: 4vh;
+  right: var(--edge);
+  top: var(--edge);
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* ================================================================ D. 极简标语 */
@@ -691,8 +699,10 @@
 .sloganPetSlot > * { width: 100%; height: 100%; }
 .sloganPlaying { position: absolute; z-index: 6; left: 6vw; bottom: 12vh; width: 320px; }
 .sloganQuote { left: 6vw; bottom: 5vh; color: #c9d3e6; }
-.sloganDots { position: absolute; z-index: 6; right: 3vw; top: 4vh; display: flex; gap: 10px; }
+.sloganDots { position: absolute; z-index: 6; right: var(--edge); top: var(--edge); display: flex; gap: 8px; }
 
 /* 屏保: overlays keep the same material at a lower opacity */
 .saver { --glass-fill: var(--glass-fill-faint); }
 .saver .lockSub, .saver .dock { opacity: 0.85; }
+/* faint glass over a dark photo: overlays read in white ink whatever the system appearance */
+.saver.sea, .saver.slogan { --ink: rgba(255, 255, 255, 0.94); --ink-2: rgba(255, 255, 255, 0.72); --ink-3: rgba(255, 255, 255, 0.52); --fill-1: rgba(255, 255, 255, 0.12); --fill-3: rgba(255, 255, 255, 0.22); --glass-top: rgba(255, 255, 255, 0.3); --glass-edge: rgba(255, 255, 255, 0.12); }
