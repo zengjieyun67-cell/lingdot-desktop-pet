@@ -3,6 +3,7 @@ import { api, errorText } from "../api/client";
 import type { Live2DImport } from "../api/types";
 import { Button, inputClass } from "./ui";
 import s from "./Panel.module.css";
+import { IS_WINDOWS } from "../lib/platform";
 
 /** True when the pet is not showing a Live2D model right now (→ show the import card). */
 export function needsLive2DCard(status: string | null | undefined): boolean {
@@ -49,7 +50,7 @@ export function Live2DImportCard({ prominent }: { prominent: boolean }) {
       <div className={s.rowDesc}>
         {prominent ? "现在显示的是内置猫娘。" : null}
         把模型文件夹（里面有 <b>.model3.json</b>）和官网下载的 <b>CubismSdkForWeb-*.zip</b> 放进「下载」文件夹，然后点一键导入。
-        第一次会弹出访问「下载 / 桌面 / 文稿」的权限，点「好」就行。以前在 Mac 上配置过的项目文件夹也会自动找到。
+        {IS_WINDOWS ? "会在「下载 / 桌面 / 文档」（含 OneDrive）和 ~/Live2D 里找。" : "第一次会弹出访问「下载 / 桌面 / 文稿」的权限，点「好」就行。"}以前配置过的项目文件夹也会自动找到。
       </div>
       <div className={s.l2dActions}>
         <Button variant="primary" disabled={!!busy} onClick={scan}>
@@ -65,7 +66,7 @@ export function Live2DImportCard({ prominent }: { prominent: boolean }) {
           style={{ flex: 1 }}
           value={path}
           onChange={(e) => setPath(e.target.value)}
-          placeholder="或粘贴模型文件夹路径，例如 /Users/你/Downloads/女仆猫娘"
+          placeholder={IS_WINDOWS ? "或粘贴模型文件夹路径，例如 C:\\Users\\你\\Downloads\\女仆猫娘" : "或粘贴模型文件夹路径，例如 /Users/你/Downloads/女仆猫娘"}
         />
         <Button small disabled={!!busy || !path.trim()} onClick={fromPath}>
           导入
