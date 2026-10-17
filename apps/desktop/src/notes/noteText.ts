@@ -75,13 +75,13 @@ export const COLOR_LABEL: Record<NoteColor, string> = {
   sky: "天空",
 };
 
-/** Paper tint (light, dark) per preset; used as translucent fills over frosted glass. */
+/** Gentle colour tint (light, dark) per preset, laid over the shared frosted-glass fill (never flat paper). */
 export const COLOR_TINT: Record<NoteColor, { light: string; dark: string; dot: string }> = {
-  yellow: { light: "rgba(255, 236, 160, 0.78)", dark: "rgba(120, 100, 30, 0.55)", dot: "#ffd84d" },
-  pink: { light: "rgba(255, 206, 222, 0.78)", dark: "rgba(130, 50, 80, 0.55)", dot: "#ff8fb4" },
-  mint: { light: "rgba(196, 244, 220, 0.78)", dark: "rgba(30, 110, 80, 0.55)", dot: "#5fdcaa" },
-  lavender: { light: "rgba(224, 214, 255, 0.78)", dark: "rgba(80, 60, 140, 0.55)", dot: "#a993ff" },
-  sky: { light: "rgba(196, 230, 255, 0.78)", dark: "rgba(30, 80, 130, 0.55)", dot: "#62b8ff" },
+  yellow: { light: "rgba(255, 228, 140, 0.42)", dark: "rgba(255, 196, 60, 0.15)", dot: "#ffd60a" },
+  pink: { light: "rgba(255, 196, 216, 0.4)", dark: "rgba(255, 85, 140, 0.15)", dot: "#ff6fa0" },
+  mint: { light: "rgba(184, 238, 210, 0.4)", dark: "rgba(48, 209, 140, 0.13)", dot: "#34d399" },
+  lavender: { light: "rgba(212, 202, 255, 0.42)", dark: "rgba(150, 125, 255, 0.16)", dot: "#a78bfa" },
+  sky: { light: "rgba(186, 222, 255, 0.42)", dark: "rgba(64, 156, 255, 0.15)", dot: "#5ac8fa" },
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
