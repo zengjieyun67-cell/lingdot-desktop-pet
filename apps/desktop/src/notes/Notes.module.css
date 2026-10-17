@@ -66,7 +66,7 @@
   color: var(--ink-3);
   border-top: 0.5px solid var(--sep);
 }
-.footRemind { color: var(--red); font-weight: 600; }
+.footRemind { color: var(--red); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .grip {
   width: 20px;
   height: 20px;
@@ -236,7 +236,7 @@
 .cardTitle { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cardPreview { font-size: 12px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cardMeta { display: flex; flex-wrap: wrap; gap: 4px 9px; margin-top: 4px; font-size: 10.5px; color: var(--ink-3); }
-.metaRemind { color: var(--red); font-weight: 600; }
+.metaRemind { color: var(--red); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .metaPin {
   font-size: 9.5px;
   font-weight: 600;
@@ -281,26 +281,27 @@
 @keyframes toastIn { from { transform: translateY(8px) scale(0.96); opacity: 0; } }
 
 /* ------------------------------------------------------------ desktop pinned cards (same material as widgets) */
-.pinned { display: flex; flex-direction: column; gap: var(--sp-3); pointer-events: auto; }
+.pinned { display: flex; flex-direction: column; gap: var(--gutter, 16px); pointer-events: auto; }
 .mini {
   composes: tinted;
-  width: 214px;
+  width: var(--col, 232px);
   border-radius: var(--r-lg);
-  transition: transform 0.25s var(--spring), box-shadow 0.25s ease;
+  transition: transform 0.35s var(--spring), box-shadow 0.35s var(--ease-out);
   overflow: hidden;
   text-shadow: none;
 }
-.mini:hover, .mini:focus-within { transform: translateY(-2px); }
-.miniBar { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 14px; }
-.miniBar .iconBtn { width: 22px; height: 22px; }
-.miniTag { font-size: 11px; font-weight: 600; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
-.miniTag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--note-dot); }
-.miniRemind { font-size: 11px; font-weight: 600; color: var(--red); display: inline-flex; align-items: center; gap: 6px; }
-.miniRemind::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--note-dot); }
+.mini:hover, .mini:focus-within { transform: translateY(-2px); box-shadow: var(--glass-inner), var(--glass-shadow-lift); }
+.miniBar { display: flex; align-items: center; gap: 6px; height: 36px; padding: 4px 8px 0 16px; }
+.miniBar .iconBtn { width: 24px; height: 24px; opacity: 0.6; transition: opacity 0.2s; }
+.mini:hover .miniBar .iconBtn { opacity: 1; }
+.miniTag { font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.miniTag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--note-dot); box-shadow: 0 0 0 2px color-mix(in srgb, var(--note-dot) 18%, transparent); }
+.miniRemind { font-size: 10.5px; font-weight: 650; letter-spacing: 0.02em; color: var(--red); display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.miniBell { width: 13px; height: 13px; --icon-stroke: 2; }
 .miniBody {
   max-height: 150px;
   overflow: auto;
-  padding: 0 14px 12px;
+  padding: 0 16px 14px;
   -webkit-mask: linear-gradient(to bottom, #000 84%, transparent);
   mask: linear-gradient(to bottom, #000 84%, transparent);
 }
@@ -310,8 +311,8 @@
 .pinnedSaver { pointer-events: none; gap: 10px; }
 .pinnedSaver .mini {
   --glass-base: var(--glass-fill-faint);
-  width: 190px;
-  opacity: 0.7;
+  width: 200px;
+  opacity: 0.72;
   color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
