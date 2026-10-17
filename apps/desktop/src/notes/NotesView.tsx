@@ -11,6 +11,7 @@ import { RemindRow } from "./NoteWindow";
 import { checkStats, matchesQuery, noteTitle, parseNote, remindLabel } from "./noteText";
 import { useNotes } from "./useNotes";
 import s from "./Notes.module.css";
+import { NEW_NOTE_KEY } from "../lib/platform";
 
 const UNDO_MS = 6000;
 
@@ -80,7 +81,7 @@ export function NotesView() {
           <Empty title="没有找到" quip="换个关键词试试？" />
         ) : (
           <Empty title="还没有便签" quip={`想记点什么就告诉${settings.petName}，本猫记性可好了。`}>
-            <span>点「＋ 新建」，或在任何地方按 ⌘⇧N；聊天里说「记一下…」也行</span>
+            <span>点「＋ 新建」，或在任何地方按 {NEW_NOTE_KEY}；聊天里说「记一下…」也行</span>
           </Empty>
         )
       ) : (
@@ -135,7 +136,7 @@ export function NotesView() {
           })}
         </div>
       )}
-      <div className={s.hint}>⌘⇧N 随时新建 · 托盘「新建便签」 · 右键{settings.petName}选「便签」 · 把文字拖到{settings.petName}身上也能记</div>
+      <div className={s.hint}>{NEW_NOTE_KEY} 随时新建 · 托盘「新建便签」 · 右键{settings.petName}选「便签」 · 把文字拖到{settings.petName}身上也能记</div>
       {undo && (
         <div className={s.toast} role="status">
           已删除「{noteTitle(undo.content, 12)}」
