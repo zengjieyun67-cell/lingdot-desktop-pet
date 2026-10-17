@@ -13,12 +13,12 @@ import s from "./Panel.module.css";
 
 export type SettingsSection = "role" | "persona" | "chat" | "voice" | "extension" | "general";
 const SECTIONS: Array<{ id: SettingsSection; label: string }> = [
-  { id: "role", label: "🐱 角色" },
-  { id: "persona", label: "💕 小喵" },
-  { id: "chat", label: "💬 聊天" },
-  { id: "voice", label: "🎙️ 语音" },
-  { id: "extension", label: "🧩 扩展" },
-  { id: "general", label: "⚙️ 通用" },
+  { id: "role", label: "角色" },
+  { id: "persona", label: "小喵" },
+  { id: "chat", label: "聊天" },
+  { id: "voice", label: "语音" },
+  { id: "extension", label: "扩展" },
+  { id: "general", label: "通用" },
 ];
 
 let pendingSection: SettingsSection | null = null;
