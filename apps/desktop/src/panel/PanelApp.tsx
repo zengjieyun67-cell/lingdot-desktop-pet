@@ -11,16 +11,17 @@ import { FirstRun } from "./FirstRun";
 import { ChatView } from "./ChatView";
 import { NotesView } from "../notes/NotesView";
 import { requestSettingsSection } from "./SettingsView";
+import { Icon, type IconName } from "../ui/Icon";
 import s from "./Panel.module.css";
 
 export type Tab = "tasks" | "sites" | "notes" | "chat" | "notifications" | "settings";
-const TABS: Array<{ id: Tab; label: string; emoji: string }> = [
-  { id: "tasks", label: "任务", emoji: "🧶" },
-  { id: "sites", label: "网站", emoji: "🧭" },
-  { id: "notes", label: "便签", emoji: "📝" },
-  { id: "chat", label: "聊天", emoji: "💬" },
-  { id: "notifications", label: "通知", emoji: "🔔" },
-  { id: "settings", label: "设置", emoji: "🎀" },
+const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
+  { id: "tasks", label: "任务", icon: "tasks" },
+  { id: "sites", label: "网站", icon: "sites" },
+  { id: "notes", label: "便签", icon: "notes" },
+  { id: "chat", label: "聊天", icon: "chat" },
+  { id: "notifications", label: "通知", icon: "bell" },
+  { id: "settings", label: "设置", icon: "settings" },
 ];
 
 /** Drag the borderless panel window by its header (buttons stay clickable). */
@@ -207,7 +208,7 @@ export function PanelApp() {
       <nav className={s.tabs}>
         {TABS.map((t) => (
           <button key={t.id} className={`${s.tab} ${tab === t.id ? s.tabActive : ""}`} onClick={() => setTab(t.id)}>
-            <span className={s.tabEmoji} aria-hidden="true">{t.emoji}</span>
+            <Icon name={t.icon} className={s.tabIcon} />
             {t.label}
             {t.id === "notifications" && unread > 0 && <span className={s.tabCount}>{unread > 9 ? "9+" : unread}</span>}
           </button>
