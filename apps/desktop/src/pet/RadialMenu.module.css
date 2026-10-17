@@ -33,11 +33,11 @@
   height: 68%;
   pointer-events: none;
 }
-.track { fill: none; stroke: var(--fill-2); stroke-width: 4; }
+.track { fill: none; stroke: var(--fill-2); stroke-width: 3; }
 .arc {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 4;
+  stroke-width: 3;
   stroke-linecap: round;
   transition: stroke-dasharray 0.5s ease;
 }
@@ -95,6 +95,8 @@
   color: var(--ink);
   font-size: 0.8em;
 }
+.pillIcon svg { width: 72%; height: 72%; --icon-stroke: 1.9; }
+.pill:active { transform: translate(-50%, -50%) scale(0.94); }
 
 .lights {
   position: absolute;
