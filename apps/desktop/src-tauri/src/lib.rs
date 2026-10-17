@@ -178,10 +178,15 @@ pub fn run() {
             windows::restore_pet(app.handle(), &settings);
             notes_cmds::restore_popped(app.handle());
 
-            // ---- ⌘⇧N: new sticky note from anywhere
+            // ---- ⌘⇧N / Ctrl+Shift+N: new sticky note from anywhere
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-                let sc = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyN);
+                // ⌘⇧N on macOS, Ctrl+Shift+N on Windows / Linux
+                #[cfg(target_os = "macos")]
+                let primary = Modifiers::SUPER;
+                #[cfg(not(target_os = "macos"))]
+                let primary = Modifiers::CONTROL;
+                let sc = Shortcut::new(Some(primary | Modifiers::SHIFT), Code::KeyN);
                 let _ = app.global_shortcut().on_shortcut(sc, |app, _sc, ev| {
                     if ev.state == ShortcutState::Pressed {
                         notes_cmds::new_quick_note(app);
