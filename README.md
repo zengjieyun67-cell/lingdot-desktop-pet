@@ -1,9 +1,9 @@
 # lingdot-desktop-pet ·「小喵」桌宠
 
-一只住在 macOS 桌面角落的傲娇猫娘「小喵」（名字和她对你的称呼都可以改，默认称你为「主人」）。她会在你**授权过的网站**上的 AI 任务（例如 ChatGPT 生成回答）**进行中 / 完成 / 失败 / 需要你处理**时做出反应并提醒你，深夜催你睡觉、饭点提醒吃饭，被冷落会闹别扭，也是一个小巧的网站启动器。
+一只住在 macOS / Windows 桌面角落的傲娇猫娘「小喵」（名字和她对你的称呼都可以改，默认称你为「主人」）。她会在你**授权过的网站**上的 AI 任务（例如 ChatGPT 生成回答）**进行中 / 完成 / 失败 / 需要你处理**时做出反应并提醒你，深夜催你睡觉、饭点提醒吃饭，被冷落会闹别扭，也是一个小巧的网站启动器。
 
 - 透明、无边框、始终置顶、不占 Dock 的小窗口，可拖动，记住位置；大小可在 60%–250% 之间自由调节
-- 面板清爽可爱（奶油 / 蜜桃 / 草莓牛奶配色），按住顶部可拖动，会记住位置
+- 统一的苹果风磨砂玻璃界面（macOS Sonoma / visionOS 质感）：面板、便签、桌面小组件、文件夹、音乐卡片、快捷圆盘都是同一种材质；按住顶部可拖动，会记住位置
 - 内置精心绘制的分层 SVG 猫娘：呼吸、眨眼、耳朵抖动、尾巴摆动、眼睛/头跟随鼠标；任务状态动画（打字 / 开心跳跃 / 竖耳“!”）+ 情绪表情（脸红、鼓脸、半睁眼、耳朵耷拉/竖起/后压）
 - 放入 Live2D Cubism Core 与你的 `.model3.json` 模型后自动切换为 Live2D（情绪/状态映射到模型表情与动作）
 - **性格**：傲娇台词库（离线可用）× 情绪状态机 × 本地长期记忆（好感度、熟悉度、习惯）
@@ -11,11 +11,25 @@
 - Chrome MV3 扩展只在你授权的网站注入脚本，只上报标题、网址和按钮状态信号
 - 本地服务只监听 `127.0.0.1`，Bearer 令牌 + Origin/Host 校验 + 16KB 限制 + 严格 schema
 
-> 系统要求：macOS 12+（Apple Silicon / Intel 均可），Chrome / Edge / Arc 等 Chromium 浏览器。
+> 系统要求：macOS 12+（Apple Silicon / Intel 均可）或 Windows 10 / 11（x64），Chrome / Edge / Arc 等 Chromium 浏览器。
 
 ## 🚀 快速开始（普通用户看这里）
 
-### 1. 下载并一键安装
+### 0. 直接下载安装包（推荐）
+
+在 [Releases](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases) 里下载最新的 build：
+
+| 系统 | 文件 |
+| --- | --- |
+| Mac（Apple Silicon，M1–M4） | `lingdot-desktop-pet_*_aarch64.dmg` |
+| Mac（Intel） | `lingdot-desktop-pet_*_x64.dmg` |
+| Windows 10 / 11（x64） | `lingdot-desktop-pet_*_x64-setup.exe`（推荐）或 `*_x64_en-US.msi` |
+
+- **Mac**：打开 `.dmg`，把 lingdot-desktop-pet 拖进「应用程序」，第一次**右键 → 打开 → 打开**。
+- **Windows**：双击 `-setup.exe`。安装包没有付费代码签名，Windows SmartScreen 会提示「Windows 已保护你的电脑」：点 **更多信息 → 仍要运行** 即可（这是未签名应用的正常提示）。缺 WebView2 时安装程序会自动下载。
+  - Windows 上：便签快捷键是 **Ctrl+Shift+N**；文件夹快捷方式用「资源管理器」打开（下载 / 文档 / 桌面 / 开始菜单）；小喵的语音用系统语音（慧慧 / 瑶瑶）朗读；**语音识别、听歌检测暂时只支持 macOS**；面板和浮动便签用 Windows 的亚克力（Acrylic）磨砂效果。
+
+### 1. 或者：从源码一键构建（Mac）
 
 1. 点本页右上角绿色 **Code → Download ZIP**，解压到任意位置（或 `git clone`）。
 2. 双击 **`一键安装.command`**。
@@ -296,10 +310,11 @@ bash scripts/setup-live2d.sh --model ~/Downloads/MyCatgirl
 6. 透明窗口使用 `macOSPrivateApi`，不能上架 Mac App Store。
 7. 拖动通过“移动超过 4px 后 `startDragging()`”实现，以区分单击。
 8. 扩展只支持 Chromium 内核浏览器。
-9. **钥匙串**：keyring 只启用了 `apple-native` 后端；在非 macOS 上（仅开发用）Key 存在内存 mock 中，重启后丢失。
+9. **钥匙串**：keyring 启用了 `apple-native`（macOS 钥匙串）和 `windows-native`（Windows 凭据管理器）后端；Linux（仅开发用）上 Key 存在内存 mock 中，重启后丢失。
 10. 聊天质量取决于你选择的模型；小喵的离线台词不依赖网络。
 11. **第二阶段的 macOS 部分只在 Linux 上编译检查过**：语音识别（objc2 调用 SFSpeechRecognizer / AVAudioEngine）、`say`、`pmset` / AppleScript / `ioreg` 探测、桌面层级窗口需要在真机上验证，见 ACCEPTANCE.md 的 P5–P7。
 12. 听歌检测靠 `pmset -g assertions` 判断谁在放声音，QQ音乐歌名靠窗口标题（需要屏幕录制权限）；版本更新可能改变行为。
+13. **Windows 版**（build-6 起）：只在 Linux 上 `cargo check --target x86_64-pc-windows-msvc` 并由 CI 打包，尚未在真机上验证。语音识别、听歌检测、桌面层级窗口（用「置底」近似）是 macOS 专有；Ctrl+Shift+N 会占用浏览器的「无痕窗口」快捷键。
 
 ## 路线图（第三阶段）
 
