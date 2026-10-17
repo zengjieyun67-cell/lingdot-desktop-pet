@@ -1,5 +1,5 @@
-//! 桌面模式 widgets: folder shortcuts (open in Finder), weather (IP location + open-meteo,
-//! no key, cached), and cheap system stats (battery via pmset, load via sysctl).
+//! 桌面模式 widgets: folder shortcuts (open in Finder / Explorer), weather (IP location + open-meteo,
+//! no key, cached), and cheap system stats (macOS: pmset + sysctl; Windows: Win32 power / system times; else hidden).
 
 use crate::AppState;
 use serde::Serialize;
@@ -21,18 +21,37 @@ pub struct DesktopFolder {
 }
 
 fn home() -> Option<std::path::PathBuf> {
-    std::env::var_os("HOME").map(std::path::PathBuf::from)
+    std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(std::path::PathBuf::from)
 }
 
 fn builtin_folders() -> Vec<(String, String, &'static str)> {
     let h = home().unwrap_or_default();
     let p = |s: &str| h.join(s).to_string_lossy().to_string();
-    vec![
-        ("下载".into(), p("Downloads"), "downloads"),
-        ("文稿".into(), p("Documents"), "documents"),
-        ("桌面".into(), p("Desktop"), "desktop"),
-        ("应用程序".into(), "/Applications".into(), "applications"),
-    ]
+    #[cfg(target_os = "windows")]
+    {
+        // 开始菜单 (the user's Start Menu programs) stands in for macOS 应用程序
+        let start = std::env::var_os("APPDATA")
+            .map(|a| std::path::PathBuf::from(a).join("Microsoft").join("Windows").join("Start Menu").join("Programs").to_string_lossy().to_string())
+            .unwrap_or_default();
+        let mut v = vec![
+            ("下载".into(), p("Downloads"), "downloads"),
+            ("文档".into(), p("Documents"), "documents"),
+            ("桌面".into(), p("Desktop"), "desktop"),
+        ];
+        if !start.is_empty() {
+            v.push(("开始菜单".into(), start, "applications"));
+        }
+        v
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        vec![
+            ("下载".into(), p("Downloads"), "downloads"),
+            ("文稿".into(), p("Documents"), "documents"),
+            ("桌面".into(), p("Desktop"), "desktop"),
+            ("应用程序".into(), "/Applications".into(), "applications"),
+        ]
+    }
 }
 
 fn folder_name(path: &str) -> String {
@@ -63,7 +82,7 @@ pub fn list_desktop_folders(state: State<'_, AppState>) -> Vec<DesktopFolder> {
     all_folders(&state)
 }
 
-/// Open one of the listed folders in Finder (only paths from the list are accepted).
+/// Open one of the listed folders in Finder / Explorer (only paths from the list are accepted).
 #[tauri::command]
 pub fn open_desktop_folder(app: AppHandle, state: State<'_, AppState>, path: String) -> CmdResult<()> {
     let known = all_folders(&state).into_iter().find(|f| f.path == path).ok_or("不在快捷文件夹列表里")?;
@@ -94,7 +113,7 @@ pub async fn add_desktop_folder(app: AppHandle, path: Option<String>) -> CmdResu
             None => return Ok(all_folders(&app.state::<AppState>())),
         },
     };
-    let p = path.trim().trim_end_matches('/').to_string();
+    let p = path.trim().trim_end_matches(['/', '\\']).to_string();
     if !std::path::Path::new(&p).is_dir() {
         return Err(format!("不是文件夹：{p}"));
     }
@@ -184,6 +203,7 @@ pub struct SystemStats {
     pub cpu_load: Option<f64>,
 }
 
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
 pub fn parse_pmset(out: &str) -> (Option<u8>, bool) {
     let pct = out
         .split(|c: char| c == '\t' || c == ';' || c == ' ')
@@ -192,6 +212,47 @@ pub fn parse_pmset(out: &str) -> (Option<u8>, bool) {
     (pct, charging)
 }
 
+#[cfg_attr(not(any(test, target_os = "windows")), allow(dead_code))]
+/// CPU busy fraction between two `GetSystemTimes` samples (idle, kernel+user), 0..1.
+pub fn cpu_busy(prev: (u64, u64), now: (u64, u64)) -> Option<f64> {
+    let total = now.1.checked_sub(prev.1)?;
+    let idle = now.0.checked_sub(prev.0)?;
+    if total == 0 {
+        return None;
+    }
+    Some(((1.0 - idle as f64 / total as f64).clamp(0.0, 1.0) * 100.0).round() / 100.0)
+}
+
+/// Windows: battery from GetSystemPowerStatus (hidden on desktops without one), CPU from
+/// GetSystemTimes deltas between widget refreshes (the first call has no CPU value yet).
+#[cfg(target_os = "windows")]
+fn win_stats() -> SystemStats {
+    use windows_sys::Win32::Foundation::FILETIME;
+    use windows_sys::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+    use windows_sys::Win32::System::Threading::GetSystemTimes;
+    static PREV: Mutex<Option<(u64, u64)>> = Mutex::new(None);
+    // SAFETY: plain Win32 calls with zeroed out-structs.
+    let mut ps: SYSTEM_POWER_STATUS = unsafe { std::mem::zeroed() };
+    let ok = unsafe { GetSystemPowerStatus(&mut ps) } != 0;
+    let has_battery = ok && ps.BatteryFlag != 128 && ps.BatteryFlag != 255 && ps.BatteryLifePercent <= 100;
+    let (battery, charging) = if has_battery { (Some(ps.BatteryLifePercent), ps.ACLineStatus == 1) } else { (None, false) };
+    let ft = |f: &FILETIME| (u64::from(f.dwHighDateTime) << 32) | u64::from(f.dwLowDateTime);
+    let mut idle: FILETIME = unsafe { std::mem::zeroed() };
+    let mut kernel: FILETIME = unsafe { std::mem::zeroed() };
+    let mut user: FILETIME = unsafe { std::mem::zeroed() };
+    let cpu_load = if unsafe { GetSystemTimes(&mut idle, &mut kernel, &mut user) } != 0 {
+        let now = (ft(&idle), ft(&kernel) + ft(&user)); // kernel time includes idle time
+        let mut prev = PREV.lock().unwrap();
+        let v = prev.and_then(|p| cpu_busy(p, now));
+        *prev = Some(now);
+        v
+    } else {
+        None
+    };
+    SystemStats { battery, charging, cpu_load }
+}
+
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
 pub fn parse_loadavg(out: &str) -> Option<f64> {
     out.trim().trim_start_matches('{').split_whitespace().next()?.parse().ok()
 }
@@ -210,7 +271,11 @@ pub async fn get_system_stats() -> SystemStats {
                 .map(|l| (l / cores * 100.0).round() / 100.0);
             SystemStats { battery, charging, cpu_load }
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            win_stats()
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             SystemStats::default()
         }
@@ -230,5 +295,8 @@ mod tests {
         assert_eq!(parse_pmset(o), (Some(100), true));
         assert_eq!(parse_pmset("Now drawing from 'AC Power'"), (None, true));
         assert_eq!(parse_loadavg("{ 2.41 2.10 1.98 }"), Some(2.41));
+        assert_eq!(cpu_busy((100, 1000), (180, 1100)), Some(0.2));
+        assert_eq!(cpu_busy((100, 1000), (100, 1000)), None);
+        assert_eq!(cpu_busy((100, 1000), (90, 1100)), None);
     }
 }
