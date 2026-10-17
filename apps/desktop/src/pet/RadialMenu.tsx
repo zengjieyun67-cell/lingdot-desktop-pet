@@ -46,6 +46,7 @@ export function RadialMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const micPressed = useRef(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -95,7 +96,7 @@ export function RadialMenu({
               key={it.id}
               role="menuitem"
               className={styles.pill}
-              style={{ left: `${50 + Math.cos(a) * 41}%`, top: `${50 + Math.sin(a) * 41}%` }}
+              style={{ left: `${50 + Math.cos(a) * 39}%`, top: `${50 + Math.sin(a) * 39}%` }}
               onClick={() => onAction(it.id)}
             >
               <span className={styles.pillIcon}>{it.icon}</span>
@@ -108,10 +109,15 @@ export function RadialMenu({
           title={voiceEnabled ? "按住说话" : "打开聊天"}
           onPointerDown={(e) => {
             e.stopPropagation();
+            if (e.button !== 0) return;
+            micPressed.current = true;
             if (voiceEnabled) onMicDown();
           }}
           onPointerUp={(e) => {
             e.stopPropagation();
+            // the right-click that opened the dial releases over the mic: not a press
+            if (e.button !== 0 || !micPressed.current) return;
+            micPressed.current = false;
             if (voiceEnabled) onMicUp();
             else onAction("chat");
           }}
