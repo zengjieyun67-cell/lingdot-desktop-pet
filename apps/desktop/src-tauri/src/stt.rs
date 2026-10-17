@@ -11,6 +11,7 @@ use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use std::time::Duration;
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub enum SttEvent {
     /// Cumulative transcript of the current session.
