@@ -19,33 +19,22 @@
 }
 
 .bubble {
+  composes: glass from global;
+  --glass-base: var(--glass-fill-solid);
   position: absolute;
   top: 6px;
   left: 8px;
   right: 8px;
-  padding: 7px 10px 8px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  box-shadow: 0 6px 20px rgba(60, 40, 110, 0.18), inset 0 0 0 0.5px rgba(255, 255, 255, 0.9);
-  color: #2b2340;
+  padding: 7px 11px 8px;
+  border-radius: var(--r-sm);
   font-size: 11.5px;
-  line-height: 1.35;
+  line-height: 1.4;
   cursor: pointer;
-  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+  animation: pop 0.35s cubic-bezier(0.2, 1.3, 0.4, 1);
   z-index: 3;
 }
-.bubble::after {
-  content: "";
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  margin-left: -6px;
-  border: 6px solid transparent;
-  border-top-color: rgba(255, 255, 255, 0.82);
-  border-bottom: 0;
-}
+/* in 桌面模式 there is a scene to blur: the regular translucent fill */
+.desktop .bubble { --glass-base: var(--glass-fill); }
 .bubbleTitle { font-weight: 650; display: block; margin-bottom: 1px; }
 .bubbleBody {
   display: -webkit-box;
@@ -54,7 +43,7 @@
   overflow: hidden;
   opacity: 0.85;
 }
-.bubbleHint { display: block; margin-top: 3px; font-size: 10px; color: #7a6aa8; }
+.bubbleHint { display: block; margin-top: 3px; font-size: 10px; color: var(--accent); font-weight: 590; }
 
 @keyframes pop {
   from { transform: translateY(6px) scale(0.85); opacity: 0; }
@@ -83,7 +72,7 @@
   display: block;
   font-size: 12px;
   font-weight: 560;
-  color: #3a2d5c;
+  color: var(--ink);
   line-height: 1.45;
 }
 .bubbleSay + .bubbleBody { margin-top: 3px; font-size: 10.5px; }
@@ -97,11 +86,11 @@
   transform: translateX(-50%);
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(255, 248, 240, 0.9);
-  color: #8a4f5e;
+  background: var(--glass-fill-solid);
+  color: var(--ink);
   font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(160, 90, 90, 0.18);
+  font-weight: 600;
+  box-shadow: var(--glass-inner), var(--glass-shadow-sm);
   pointer-events: none;
   z-index: 4;
 }
@@ -115,27 +104,26 @@
   max-width: 92%;
   padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(255, 244, 207, 0.95);
-  border: 1.5px solid #ffd66e;
-  color: #7a5a12;
+  background: var(--glass-fill-solid);
+  border: 0;
+  color: var(--ink);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 590;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 2px 8px rgba(160, 120, 20, 0.18);
+  box-shadow: var(--glass-inner), var(--glass-shadow-sm);
   pointer-events: none;
   z-index: 3;
 }
 .chipVoice {
-  background: rgba(255, 228, 238, 0.96);
-  border-color: #ff9db8;
-  color: #9a3657;
+  background: var(--accent);
+  color: #fff;
   animation: chipPulse 1.4s ease-in-out infinite;
 }
 @keyframes chipPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 157, 184, 0.5); }
-  50% { box-shadow: 0 0 0 5px rgba(255, 157, 184, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 50%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
 }
 .still .chipVoice { animation: none; }
 .desktop { cursor: default; }
@@ -166,11 +154,12 @@
   transform: translateX(-50%);
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(22, 24, 29, 0.85);
-  color: #fff;
+  background: var(--glass-fill-solid);
+  color: var(--ink);
   font-size: 11px;
+  font-weight: 590;
   white-space: nowrap;
-  box-shadow: 0 0 0 2px rgba(0, 207, 227, 0.4);
+  box-shadow: var(--glass-inner), var(--glass-shadow-sm);
   pointer-events: none;
   z-index: 40;
 }
