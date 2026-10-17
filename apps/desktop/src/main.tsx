@@ -16,6 +16,20 @@ function Root() {
   return route.startsWith("pet") ? <PetWindow /> : <PanelApp />;
 }
 
+// Platform + material hints for the CSS token layer (styles/global.css).
+{
+  const html = document.documentElement;
+  const ua = navigator.userAgent;
+  const platform = /Windows/i.test(ua) ? "windows" : /Mac/i.test(ua) ? "macos" : "other";
+  html.dataset.platform = platform;
+  const inTauri = "__TAURI_INTERNALS__" in window;
+  if (inTauri) html.dataset.tauri = "";
+  const route = window.location.hash.replace(/^#\/?/, "") || "panel";
+  // the panel window carries native vibrancy (macOS) / Acrylic (Windows): the sheet fills the window
+  if (inTauri && platform !== "other" && !route.startsWith("pet") && !route.startsWith("desktop") && !route.startsWith("screensaver") && !route.startsWith("note/")) html.dataset.nativeGlass = "";
+  if (new URLSearchParams(window.location.search).has("reduceTransparency")) html.dataset.reduceTransparency = "";
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Root />
