@@ -41,7 +41,8 @@ pub fn show_os_notification(app: &AppHandle, rec: &NotificationRecord, sound: bo
         .body(&rec.body)
         .extra("notificationId", rec.id.clone());
     if sound {
-        b = b.sound("default");
+        // macOS: the system default sound; Windows toast: "Default" (ms-winsoundevent:Notification.Default)
+        b = b.sound(if cfg!(target_os = "windows") { "Default" } else { "default" });
     }
     let _ = b.show();
 }
