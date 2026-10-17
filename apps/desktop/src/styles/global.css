@@ -122,10 +122,12 @@
 /* set by main.tsx from 设置 / the OS ("降低透明度") */
 :root[data-reduce-transparency] { --glass-fill: var(--glass-fill-solid); --glass-fill-faint: var(--glass-fill-solid); --glass-blur: none; }
 
-/* The material. `--glass-tint` lays a colour (便签) over the fill; `--glass-base` swaps the fill. */
+/* The material. `--glass-tint` lays a faint colour wash over the fill, `--glass-accent` adds extra
+   accent layers on top (便签: corner glow + top line), `--glass-base` swaps the fill. */
 .glass {
   background:
     var(--glass-noise) 0 0 / 140px 140px,
+    var(--glass-accent, linear-gradient(transparent, transparent)),
     var(--glass-sheen),
     linear-gradient(var(--glass-tint, transparent), var(--glass-tint, transparent)),
     var(--glass-base, var(--glass-fill));
