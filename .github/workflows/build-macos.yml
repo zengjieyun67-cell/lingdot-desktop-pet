@@ -41,6 +41,12 @@ jobs:
         with:
           name: lingdot-desktop-pet-${{ matrix.target }}
           path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+      # Portable: the bare app exe (frontend is embedded; needs only WebView2, built into Win10/11).
+      - run: |
+          mkdir portable
+          cp apps/desktop/src-tauri/target/${{ matrix.target }}/release/desktop-pet.exe portable/lingdot-desktop-pet_x64-portable.exe
+        shell: bash
+        if: runner.os == 'Windows'
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
@@ -48,6 +54,7 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            portable/*.exe
       - run: cd apps/browser-extension && zip -r ../../browser-extension.zip dist
         if: matrix.target == 'aarch64-apple-darwin'
       - uses: actions/upload-artifact@v4
