@@ -18,6 +18,21 @@ fn roots(app: &AppHandle, folder: Option<PathBuf>) -> Result<ScanRoots, String> 
         None => {
             #[allow(unused_mut)]
             let mut r = ScanRoots::standard(home.clone(), app_live2d);
+            // Portable builds: a model folder next to the exe (e.g. `xiaomiao-live2d\` beside
+            // `LingdotPet.exe`), or a personal model pack appended to the exe itself, wins.
+            if let Ok(exe) = std::env::current_exe() {
+                if let Ok(data) = app.path().app_data_dir() {
+                    match live2d_scan::unpack_embedded(&exe, &data.join("embedded-pack")) {
+                        Ok(Some(dir)) => r.preferred.push(dir),
+                        Ok(None) => {}
+                        Err(e) => eprintln!("embedded Live2D pack: {e}"),
+                    }
+                }
+                #[cfg(not(target_os = "macos"))]
+                if let Some(dir) = exe.parent() {
+                    r.preferred.push(dir.to_path_buf());
+                }
+            }
             // Windows: 下载 / 桌面 / 文档 are often redirected (OneDrive, another drive) — scan the
             // Known Folders too, besides %USERPROFILE%\Downloads etc. which `standard` covers.
             #[cfg(target_os = "windows")]
