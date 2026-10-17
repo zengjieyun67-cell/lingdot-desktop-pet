@@ -12,6 +12,7 @@ import {
   type ChatProvider,
 } from "../lib/chatPresets";
 import s from "./Panel.module.css";
+import { KEYCHAIN } from "../lib/platform";
 
 function Row({ title, desc, children }: { title: string; desc?: ReactNode; children: ReactNode }) {
   return (
@@ -119,7 +120,7 @@ export function ChatSettings() {
         )}
 
         <div className={`${s.row} ${s.rowStack}`}>
-          <div className={s.rowTitle}>API Key {hasKey ? "✅ 已保存在钥匙串" : "（未设置）"}</div>
+          <div className={s.rowTitle}>API Key {hasKey ? `✅ 已保存在${KEYCHAIN}` : "（未设置）"}</div>
           {provider === "deepseek" && (
             <div className={s.rowDesc}>
               还没有 Key？去{" "}
@@ -155,7 +156,7 @@ export function ChatSettings() {
                   await api.setChatApiKey(key.trim());
                   setKey("");
                   setHasKey(true);
-                  setMsg("已保存到钥匙串");
+                  setMsg(`已保存到${KEYCHAIN}`);
                 } catch (e) {
                   setMsg(errorText(e));
                 }
@@ -190,7 +191,7 @@ export function ChatSettings() {
               请求地址：{endpoint.trim() ? chatCompletionsUrl(endpoint) : "—"}
               {provider === "deepseek" && "（使用非思考模式，回复更快）"}
             </div>
-            <div className={s.rowDesc}>Key 只保存在 macOS 钥匙串，由后台发送请求时读取，不会写入数据库或显示在界面上。</div>
+            <div className={s.rowDesc}>Key 只保存在{KEYCHAIN}，由后台发送请求时读取，不会写入数据库或显示在界面上。</div>
             <div className={s.inline}>
               <Button
                 small
