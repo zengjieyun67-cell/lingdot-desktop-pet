@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
 import styles from "./RadialMenu.module.css";
+import { Icon, type IconName } from "../ui/Icon";
 
 export type RadialAction = "chat" | "tasks" | "music" | "settings" | "notes";
 
-export const RADIAL_ITEMS: Array<{ id: RadialAction; label: string; icon: string }> = [
-  { id: "chat", label: "聊天", icon: "💬" },
-  { id: "tasks", label: "任务", icon: "✓" },
-  { id: "music", label: "音乐", icon: "♪" },
-  { id: "settings", label: "设置", icon: "⚙" },
-  { id: "notes", label: "便签", icon: "✎" },
+export const RADIAL_ITEMS: Array<{ id: RadialAction; label: string; icon: IconName }> = [
+  { id: "chat", label: "聊天", icon: "chat" },
+  { id: "tasks", label: "任务", icon: "tasks" },
+  { id: "music", label: "音乐", icon: "music" },
+  { id: "settings", label: "设置", icon: "settings" },
+  { id: "notes", label: "便签", icon: "notes" },
 ];
 
 /** Ring position (deg, 0 = right, clockwise) of each pill: top-left, top-right, bottom-right, bottom-left, bottom. */
@@ -99,7 +100,7 @@ export function RadialMenu({
               style={{ left: `${50 + Math.cos(a) * 39}%`, top: `${50 + Math.sin(a) * 39}%` }}
               onClick={() => onAction(it.id)}
             >
-              <span className={styles.pillIcon}>{it.icon}</span>
+              <span className={styles.pillIcon}><Icon name={it.icon} /></span>
               {it.label}
             </button>
           );
