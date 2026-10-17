@@ -527,6 +527,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
   return (
     <div
       ref={wrapRef}
+      data-pet-variant={variant}
       className={`${styles.wrap} ${animations ? "" : styles.still} ${isDesktop ? styles.desktop : ""} ${dropHover ? styles.dropHover : ""}`}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
