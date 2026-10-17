@@ -387,11 +387,12 @@ function SeaScene({ now, music, entries, saver, pet, scriptWeekday }: SceneInfo)
       <SeaCanvas weights={w} className={s.seaCanvas} />
       <div className={s.seaTint} aria-hidden />
       <header className={s.seaHead}>
-        <div className={s.seaGreet}>{greeting(now)}</div>
+        {/* the script line already names the day, so the eyebrow keeps only the greeting */}
+        <div className={s.seaGreet}>{scriptWeekday ? greeting(now).split("，")[0] : greeting(now)}</div>
         <div className={s.seaTime}>{time}</div>
         {scriptWeekday && <div className={`${s.script} ${s.seaScript}`}>{WEEKDAYS_SCRIPT[now.getDay()]}</div>}
         <div className={s.seaDate}>
-          {now.getFullYear()}.{pad(now.getMonth() + 1)}.{pad(now.getDate())}
+          {now.getFullYear()} · {pad(now.getMonth() + 1)} · {pad(now.getDate())}
         </div>
       </header>
       <div className={s.seaPetSlot} data-pet-slot="sea">
