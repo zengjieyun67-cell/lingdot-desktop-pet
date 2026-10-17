@@ -40,14 +40,17 @@ pub struct ScanRoots {
     pub extra: Vec<PathBuf>,
     /// Scan the standard folders (下载/桌面/文稿/~/Live2D + old checkouts). False = only `extra`.
     pub standard: bool,
+    /// Folders whose models win over ones found elsewhere (the folder next to the app's exe,
+    /// a model pack embedded in the exe). Also scanned deeply.
+    pub preferred: Vec<PathBuf>,
 }
 
 impl ScanRoots {
     pub fn standard(home: impl Into<PathBuf>, app_live2d: impl Into<PathBuf>) -> Self {
-        Self { home: home.into(), app_live2d: app_live2d.into(), extra: vec![], standard: true }
+        Self { home: home.into(), app_live2d: app_live2d.into(), extra: vec![], standard: true, preferred: vec![] }
     }
     pub fn folder(home: impl Into<PathBuf>, app_live2d: impl Into<PathBuf>, folder: impl Into<PathBuf>) -> Self {
-        Self { home: home.into(), app_live2d: app_live2d.into(), extra: vec![folder.into()], standard: false }
+        Self { home: home.into(), app_live2d: app_live2d.into(), extra: vec![folder.into()], standard: false, preferred: vec![] }
     }
 }
 
@@ -182,6 +185,9 @@ pub fn score_model(p: &Path, roots: &ScanRoots, hint: Option<&str>) -> i64 {
     if is_inside(p, &roots.app_live2d) {
         score += 150;
     }
+    if roots.preferred.iter().any(|d| is_inside(p, d)) {
+        score += 120;
+    }
     if let Some(h) = hint.map(|h| h.trim().trim_start_matches('/')).filter(|h| h.ends_with(".model3.json")) {
         let tail = h.strip_prefix("live2d/").unwrap_or(h);
         if path_has(p, tail) {
@@ -240,7 +246,7 @@ pub fn scan(roots: &ScanRoots, hint: Option<&str>) -> ScanResult {
     if !roots.app_live2d.as_os_str().is_empty() {
         deep.push((roots.app_live2d.clone(), 4));
     }
-    for e in &roots.extra {
+    for e in roots.preferred.iter().chain(roots.extra.iter()) {
         deep.push((e.clone(), 6));
     }
     if roots.standard {
@@ -296,10 +302,29 @@ pub fn scan(roots: &ScanRoots, hint: Option<&str>) -> ScanResult {
 
 /// List entries of a zip with the system `unzip` (empty when unavailable).
 pub fn zip_entries(zip: &Path) -> Vec<String> {
-    match Command::new("unzip").arg("-Z1").arg(zip).output() {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).lines().map(|l| l.to_string()).collect(),
-        _ => vec![],
+    let lines = |o: std::process::Output| -> Vec<String> {
+        String::from_utf8_lossy(&o.stdout).lines().map(|l| l.trim_end_matches('\r').to_string()).collect()
+    };
+    match tool("unzip").arg("-Z1").arg(zip).output() {
+        Ok(o) if o.status.success() => lines(o),
+        // Windows 10+ has no unzip, but its bundled bsdtar (`tar.exe`) reads zips.
+        _ => match tool("tar").arg("-tf").arg(zip).output() {
+            Ok(o) if o.status.success() => lines(o),
+            _ => vec![],
+        },
     }
+}
+
+/// A command for a helper tool; on Windows without the flashing console window.
+fn tool(name: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut c = Command::new(name);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    c
 }
 
 /// Extract `Core/live2dcubismcore.min.js` from a Cubism SDK for Web zip into `dest`.
@@ -309,7 +334,10 @@ pub fn extract_core_from_sdk_zip(zip: &Path, dest: &Path) -> Result<(), String> 
         .filter(|e| e.ends_with(&format!("Core/{CORE_FILE}")))
         .min_by_key(|e| e.len())
         .ok_or_else(|| "SDK 压缩包里没有 Core/live2dcubismcore.min.js".to_string())?;
-    let out = Command::new("unzip").arg("-p").arg(zip).arg(&entry).output().map_err(|e| format!("无法解压 SDK：{e}"))?;
+    let out = match tool("unzip").arg("-p").arg(zip).arg(&entry).output() {
+        Ok(o) if o.status.success() => o,
+        _ => tool("tar").arg("-xOf").arg(zip).arg(&entry).output().map_err(|e| format!("无法解压 SDK：{e}"))?,
+    };
     if !out.status.success() || out.stdout.len() < 10_000 {
         return Err("解压 Cubism Core 失败".into());
     }
@@ -324,14 +352,17 @@ fn extract_zip(zip: &Path, dest: &Path) -> Result<(), String> {
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     let ditto = Path::new("/usr/bin/ditto");
     let ok = if ditto.exists() {
-        Command::new(ditto).args(["-x", "-k"]).arg(zip).arg(dest).status().map(|s| s.success()).unwrap_or(false)
+        tool("/usr/bin/ditto").args(["-x", "-k"]).arg(zip).arg(dest).status().map(|s| s.success()).unwrap_or(false)
     } else {
         false
     };
     if ok {
         return Ok(());
     }
-    let st = Command::new("unzip").args(["-q", "-o"]).arg(zip).arg("-d").arg(dest).status().map_err(|e| format!("无法解压：{e}"))?;
+    if tool("unzip").args(["-q", "-o"]).arg(zip).arg("-d").arg(dest).status().map(|s| s.success()).unwrap_or(false) {
+        return Ok(());
+    }
+    let st = tool("tar").arg("-xf").arg(zip).arg("-C").arg(dest).status().map_err(|e| format!("无法解压：{e}"))?;
     if st.success() { Ok(()) } else { Err("解压模型压缩包失败".into()) }
 }
 
@@ -373,7 +404,8 @@ pub fn safe_dir_name(name: &str) -> String {
 
 /// Copy the model's folder into `<appData>/live2d/models/<dir>/` and return the new `.model3.json`.
 pub fn import_model(model_json: &Path, app_live2d: &Path) -> Result<PathBuf, String> {
-    if is_inside(model_json, app_live2d) {
+    // `<app>/.staging` is a scratch folder (zip extraction) deleted right after import: copy out of it.
+    if is_inside(model_json, app_live2d) && !is_inside(model_json, &app_live2d.join(".staging")) {
         return Ok(model_json.to_path_buf());
     }
     let src_dir = model_json.parent().ok_or("模型路径无效")?;
@@ -482,7 +514,7 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
                     errors.push(e);
                     continue;
                 }
-                let sub = ScanRoots { home: roots.home.clone(), app_live2d: PathBuf::new(), extra: vec![staging.clone()], standard: false };
+                let sub = ScanRoots { home: roots.home.clone(), app_live2d: PathBuf::new(), extra: vec![staging.clone()], standard: false, preferred: vec![] };
                 let found = scan(&sub, hint);
                 if let Some(m) = found.models.iter().find(|m| allow_samples || !is_sample_model(&m.model_json)) {
                     match import_model(&m.model_json, app) {
@@ -550,6 +582,117 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
         out.message.push_str(&format!("（{}）", errors.join("；")));
     }
     out
+}
+
+// ---------------------------------------------------------------------------------------
+// Model pack embedded in the app's own executable (portable single-exe builds).
+//
+// A personal build can carry the user's own model + Cubism Core *inside* the exe: the files
+// are appended after the PE/Mach-O image (the OS loader ignores trailing data), followed by
+// a JSON index and a fixed trailer. Public builds never contain a pack. Layout at EOF:
+//   [file bytes …][index json][u64 LE index_len][u64 LE data_start][8 bytes PACK_MAGIC]
+// index json = {"files":[{"path":"xiaomiao-live2d/free1/free1.moc3","offset":0,"size":123},…]}
+// (offsets relative to data_start; paths use '/').
+// ---------------------------------------------------------------------------------------
+
+pub const PACK_MAGIC: &[u8; 8] = b"LDPACK01";
+const PACK_TRAILER: u64 = 24;
+const MAX_PACK_BYTES: u64 = 1_500 * 1024 * 1024;
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct PackIndex {
+    files: Vec<PackEntry>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+struct PackEntry {
+    path: String,
+    offset: u64,
+    size: u64,
+}
+
+/// Append a pack of `files` (relative path, bytes) to `exe` — used by the private packaging
+/// script's Rust twin and by tests.
+pub fn append_pack(exe: &Path, files: &[(String, Vec<u8>)]) -> std::io::Result<()> {
+    use std::io::Write;
+    let start = fs::metadata(exe)?.len();
+    let mut f = fs::OpenOptions::new().append(true).open(exe)?;
+    let mut idx = PackIndex { files: vec![] };
+    let mut off = 0u64;
+    for (p, b) in files {
+        f.write_all(b)?;
+        idx.files.push(PackEntry { path: p.clone(), offset: off, size: b.len() as u64 });
+        off += b.len() as u64;
+    }
+    let j = serde_json::to_vec(&idx).map_err(std::io::Error::other)?;
+    f.write_all(&j)?;
+    f.write_all(&(j.len() as u64).to_le_bytes())?;
+    f.write_all(&start.to_le_bytes())?;
+    f.write_all(PACK_MAGIC)?;
+    Ok(())
+}
+
+fn safe_rel(p: &str) -> Option<PathBuf> {
+    let p = p.replace('\\', "/");
+    let mut out = PathBuf::new();
+    for c in p.split('/') {
+        if c.is_empty() || c == "." {
+            continue;
+        }
+        if c == ".." || c.contains(':') {
+            return None;
+        }
+        out.push(c);
+    }
+    (!out.as_os_str().is_empty()).then_some(out)
+}
+
+/// If `exe` carries an embedded model pack, extract it into `dest` (once; a stamp file skips
+/// re-extraction on later launches) and return `dest`. `Ok(None)` = no pack (public builds).
+pub fn unpack_embedded(exe: &Path, dest: &Path) -> Result<Option<PathBuf>, String> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = fs::File::open(exe).map_err(|e| e.to_string())?;
+    let len = f.metadata().map_err(|e| e.to_string())?.len();
+    if len < PACK_TRAILER {
+        return Ok(None);
+    }
+    let mut t = [0u8; 24];
+    f.seek(SeekFrom::Start(len - PACK_TRAILER)).map_err(|e| e.to_string())?;
+    f.read_exact(&mut t).map_err(|e| e.to_string())?;
+    if &t[16..24] != PACK_MAGIC {
+        return Ok(None);
+    }
+    let idx_len = u64::from_le_bytes(t[0..8].try_into().unwrap());
+    let start = u64::from_le_bytes(t[8..16].try_into().unwrap());
+    let idx_at = len.checked_sub(PACK_TRAILER + idx_len).ok_or("内置模型包损坏")?;
+    if start > idx_at || idx_len > 16 * 1024 * 1024 || idx_at - start > MAX_PACK_BYTES {
+        return Err("内置模型包损坏".into());
+    }
+    let stamp_val = format!("{len}-{idx_len}-{start}");
+    let stamp = dest.join(".pack-stamp");
+    if fs::read_to_string(&stamp).map(|s| s == stamp_val).unwrap_or(false) {
+        return Ok(Some(dest.to_path_buf()));
+    }
+    let mut j = vec![0u8; idx_len as usize];
+    f.seek(SeekFrom::Start(idx_at)).map_err(|e| e.to_string())?;
+    f.read_exact(&mut j).map_err(|e| e.to_string())?;
+    let idx: PackIndex = serde_json::from_slice(&j).map_err(|_| "内置模型包损坏".to_string())?;
+    let _ = fs::remove_dir_all(dest);
+    fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for e in &idx.files {
+        let rel = safe_rel(&e.path).ok_or("内置模型包里有无效路径")?;
+        if e.offset.checked_add(e.size).map(|end| end > idx_at - start).unwrap_or(true) {
+            return Err("内置模型包损坏".into());
+        }
+        let out = dest.join(rel);
+        if let Some(d) = out.parent() {
+            fs::create_dir_all(d).map_err(|e| e.to_string())?;
+        }
+        f.seek(SeekFrom::Start(start + e.offset)).map_err(|e| e.to_string())?;
+        let mut w = fs::File::create(&out).map_err(|e| e.to_string())?;
+        std::io::copy(&mut (&mut f).take(e.size), &mut w).map_err(|e| e.to_string())?;
+    }
+    fs::write(&stamp, stamp_val).map_err(|e| e.to_string())?;
+    Ok(Some(dest.to_path_buf()))
 }
 
 #[cfg(test)]
@@ -685,5 +828,87 @@ mod tests {
         assert_eq!(safe_dir_name("a/b:c"), "a_b_c");
         assert_eq!(safe_dir_name(".."), "model");
         assert_eq!(safe_dir_name("女仆猫娘"), "女仆猫娘");
+    }
+
+    #[test]
+    fn model_zip_is_copied_out_of_staging() {
+        let home = Tmp::new("zipmodel");
+        let h = &home.0;
+        let app = h.join("appdata/live2d");
+        let src = Tmp::new("zipsrc");
+        make_model(&src.0.join("BOOTH-maid/free1"), "free1");
+        fs::create_dir_all(h.join("Downloads")).unwrap();
+        let zip = h.join("Downloads/BOOTH-maid.zip");
+        let zipped = Command::new("zip").current_dir(&src.0).args(["-qr"]).arg(&zip).arg("BOOTH-maid").status().map(|s| s.success()).unwrap_or(false);
+        if !zipped {
+            return;
+        }
+        let out = scan_and_import(&ScanRoots::standard(h, &app), None, false);
+        let mp = PathBuf::from(out.model_path.expect("model from zip"));
+        assert!(mp.is_file(), "imported model must survive staging cleanup: {mp:?}");
+        assert!(!mp.to_string_lossy().contains(".staging"));
+        assert!(model_is_valid(&mp));
+    }
+
+    #[test]
+    fn exe_dir_model_and_core_import_and_win() {
+        // Portable layout: <dir>/LingdotPet.exe + <dir>/xiaomiao-live2d/{free1/…, live2dcubismcore.min.js}
+        let home = Tmp::new("exedir");
+        let h = &home.0;
+        let app = h.join("appdata/live2d");
+        let exe_dir = h.join("D/灵点桌宠");
+        make_model(&exe_dir.join("xiaomiao-live2d/free1"), "free1");
+        make_core(&exe_dir.join("xiaomiao-live2d").join(CORE_FILE));
+        make_model(&h.join("Downloads/other"), "other"); // newer elsewhere, must lose
+        let mut roots = ScanRoots::standard(h, &app);
+        roots.preferred.push(exe_dir.clone());
+        let out = scan_and_import(&roots, None, false);
+        assert!(out.complete(), "{}", out.message);
+        let mp = PathBuf::from(out.model_path.unwrap());
+        assert!(mp.starts_with(&app) && mp.ends_with("models/free1/free1.model3.json"), "{mp:?}");
+        assert!(app.join(CORE_FILE).is_file());
+    }
+
+    #[test]
+    fn embedded_pack_roundtrip() {
+        let d = Tmp::new("pack");
+        let exe = d.0.join("LingdotPet.exe");
+        fs::write(&exe, b"MZ fake exe body").unwrap();
+        assert_eq!(unpack_embedded(&exe, &d.0.join("out")).unwrap(), None, "no pack in public builds");
+        let model = r#"{"Version":3,"FileReferences":{"Moc":"free1.moc3","Textures":["free1.4096/texture_00.png"]}}"#;
+        append_pack(
+            &exe,
+            &[
+                ("xiaomiao-live2d/free1/free1.model3.json".into(), model.as_bytes().to_vec()),
+                ("xiaomiao-live2d/free1/free1.moc3".into(), b"MOC3".to_vec()),
+                ("xiaomiao-live2d/free1/free1.4096/texture_00.png".into(), b"png".to_vec()),
+                (format!("xiaomiao-live2d/{CORE_FILE}"), vec![b'x'; 20_000]),
+            ],
+        )
+        .unwrap();
+        assert!(fs::read(&exe).unwrap().starts_with(b"MZ fake exe body"));
+        let out = d.0.join("out");
+        assert_eq!(unpack_embedded(&exe, &out).unwrap(), Some(out.clone()));
+        assert!(model_is_valid(&out.join("xiaomiao-live2d/free1/free1.model3.json")));
+        assert_eq!(fs::read(out.join("xiaomiao-live2d/free1/free1.moc3")).unwrap(), b"MOC3");
+        // second launch: stamp hit, files untouched
+        fs::write(out.join("marker"), b"1").unwrap();
+        unpack_embedded(&exe, &out).unwrap();
+        assert!(out.join("marker").is_file());
+        // and the scanner imports it
+        let app = d.0.join("appdata/live2d");
+        let mut roots = ScanRoots::standard(d.0.join("home"), &app);
+        roots.preferred.push(out.clone());
+        assert!(scan_and_import(&roots, None, false).complete());
+    }
+
+    #[test]
+    fn pack_rejects_path_traversal() {
+        let d = Tmp::new("packbad");
+        let exe = d.0.join("x.exe");
+        fs::write(&exe, b"MZ").unwrap();
+        append_pack(&exe, &[("../../evil.txt".into(), b"no".to_vec())]).unwrap();
+        assert!(unpack_embedded(&exe, &d.0.join("out")).is_err());
+        assert!(!d.0.join("evil.txt").exists());
     }
 }
