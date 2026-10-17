@@ -1,54 +1,142 @@
+/* ==================================================================
+   lingdot design tokens — ONE frosted-glass material for every surface
+   (macOS Sonoma / visionOS): blurred + saturated backdrop, tinted translucent
+   fill, faint grain, 1px hairline with a brighter top edge, layered soft shadow.
+   Every module uses these variables or `composes: glass from global`.
+   ================================================================== */
 :root {
-  /* Rounded Latin (SF Pro Rounded via ui-rounded on macOS WebKit) + PingFang for 中文 */
-  --font: ui-rounded, "SF Pro Rounded", "PingFang SC", -apple-system, BlinkMacSystemFont, "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  /* Y2K "interactive exhibition": light grey base, near-black ink, neon cyan / pink / lime accents */
-  --text: #17191e;
-  --text-2: #565b67;
-  --text-3: #979ca8;
-  --accent: #ff3fa4;          /* neon pink */
-  --accent-2: #00cfe3;        /* neon cyan */
-  --accent-strong: #e0208a;
-  --accent-soft: rgba(0, 207, 227, 0.13);
-  --peach-soft: #eceef1;
-  --yellow: #ffd23f;
-  --yellow-soft: #fff3c4;
-  --lime: #c8f53a;
-  --pink: #ff3fa4;
-  --cyan: #00cfe3;
-  --green: #2fbf7a;
-  --amber: #f0a020;
-  --red: #ef4d6a;
-  --bg: #e8e9ec;
-  --glass: rgba(232, 233, 236, 0.97);
-  --glass-strong: #f7f7f9;
-  --line: rgba(20, 24, 34, 0.09);
-  --card-shadow: 0 1px 2px rgba(20, 24, 34, 0.06), 0 6px 16px rgba(20, 24, 34, 0.05);
-  --card-shadow-hover: 0 10px 26px rgba(20, 24, 34, 0.12), 0 2px 4px rgba(20, 24, 34, 0.06);
-  --shadow: 0 24px 60px rgba(20, 24, 34, 0.22), 0 3px 10px rgba(20, 24, 34, 0.1);
-  --radius: 20px;
-  --radius-card: 16px;
-  --spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+  /* type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "PingFang SC", "Hiragino Sans GB", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Noto Sans CJK SC", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "PingFang SC", "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* geometry: 8 / 12 / 16 / 22, pills */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --icon-stroke: 1.6;
+
+  /* ink (on the glass) */
+  --ink: rgba(0, 0, 0, 0.86);
+  --ink-2: rgba(60, 60, 67, 0.72);
+  --ink-3: rgba(60, 60, 67, 0.48);
+  --sep: rgba(60, 60, 67, 0.14);
+
+  /* the material */
+  --glass-fill: rgba(255, 255, 255, 0.62);
+  --glass-fill-solid: rgba(246, 246, 248, 0.94);   /* no live backdrop (fallback / reduced transparency) */
+  --glass-fill-faint: rgba(255, 255, 255, 0.2);    /* screensaver overlays */
+  --glass-blur: blur(32px) saturate(180%);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%);
+  --glass-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --glass-edge: rgba(255, 255, 255, 0.55);          /* hairline */
+  --glass-top: rgba(255, 255, 255, 0.85);           /* brighter top edge */
+  --glass-outline: rgba(0, 0, 0, 0.07);             /* outer hairline that separates from the backdrop */
+  --glass-shadow: 0 0 0 0.5px var(--glass-outline), 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.1), 0 24px 56px -16px rgba(0, 0, 0, 0.22);
+  --glass-shadow-sm: 0 0 0 0.5px var(--glass-outline), 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --glass-inner: inset 0 1px 0 var(--glass-top), inset 0 0 0 1px var(--glass-edge);
+
+  /* controls sitting ON glass (grouped rows, segments, inputs) */
+  --fill-1: rgba(255, 255, 255, 0.5);
+  --fill-2: rgba(120, 120, 128, 0.12);
+  --fill-3: rgba(120, 120, 128, 0.2);
+  --knob: #fff;
+  --knob-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06);
+
+  /* one accent (system pink) + system status colours */
+  --accent: #ff2d55;
+  --accent-strong: #e0244a;
+  --accent-soft: rgba(255, 45, 85, 0.12);
+  --accent-ink: #fff;
+  --green: #34c759;
+  --amber: #ff9f0a;
+  --red: #ff3b30;
+  --blue: #0a84ff;
+
+  /* legacy names, mapped onto the tokens */
+  --text: var(--ink);
+  --text-2: var(--ink-2);
+  --text-3: var(--ink-3);
+  --line: var(--sep);
+  --glass: var(--glass-fill);
+  --glass-strong: var(--fill-1);
+  --peach-soft: var(--fill-2);
+  --yellow: #ffcc00;
+  --yellow-soft: rgba(255, 204, 0, 0.18);
+  --lime: var(--accent);
+  --pink: var(--accent);
+  --cyan: var(--blue);
+  --accent-2: var(--blue);
+  --card-shadow: 0 0 0 0.5px var(--glass-outline), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 0 0 0.5px var(--glass-outline), 0 6px 16px rgba(0, 0, 0, 0.08);
+  --shadow: var(--glass-shadow);
+  --radius: var(--r-lg);
+  --radius-card: var(--r-sm);
+  --spring: cubic-bezier(0.3, 1.25, 0.5, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #f1f2f5;
-    --text-2: #b9bdc8;
-    --text-3: #7d8290;
-    --accent-soft: rgba(0, 207, 227, 0.16);
-    --peach-soft: rgba(255, 255, 255, 0.06);
-    --yellow-soft: rgba(255, 210, 63, 0.16);
-    --bg: #18191d;
-    --glass: rgba(26, 27, 32, 0.97);
-    --glass-strong: #24262c;
-    --line: rgba(255, 255, 255, 0.08);
-    --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    --card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.4);
-    --shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 3px 10px rgba(0, 0, 0, 0.3);
+    --ink: rgba(255, 255, 255, 0.92);
+    --ink-2: rgba(235, 235, 245, 0.66);
+    --ink-3: rgba(235, 235, 245, 0.4);
+    --sep: rgba(255, 255, 255, 0.1);
+    --glass-fill: rgba(30, 30, 34, 0.56);
+    --glass-fill-solid: rgba(36, 36, 40, 0.94);
+    --glass-fill-faint: rgba(20, 20, 24, 0.22);
+    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 40%);
+    --glass-edge: rgba(255, 255, 255, 0.1);
+    --glass-top: rgba(255, 255, 255, 0.2);
+    --glass-outline: rgba(0, 0, 0, 0.45);
+    --glass-shadow: 0 0 0 0.5px var(--glass-outline), 0 1px 2px rgba(0, 0, 0, 0.2), 0 10px 28px rgba(0, 0, 0, 0.32), 0 28px 60px -16px rgba(0, 0, 0, 0.45);
+    --glass-shadow-sm: 0 0 0 0.5px var(--glass-outline), 0 4px 12px rgba(0, 0, 0, 0.25);
+    --fill-1: rgba(255, 255, 255, 0.07);
+    --fill-2: rgba(118, 118, 128, 0.24);
+    --fill-3: rgba(118, 118, 128, 0.36);
+    --knob: #f2f2f7;
+    --accent: #ff375f;
+    --accent-strong: #ff6482;
+    --accent-soft: rgba(255, 55, 95, 0.2);
+    --yellow-soft: rgba(255, 214, 10, 0.16);
+    --card-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
+
+/* No live backdrop to blur → a more opaque fill so text keeps its contrast. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass-fill: var(--glass-fill-solid); --glass-fill-faint: var(--glass-fill-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass-fill: var(--glass-fill-solid); --glass-fill-faint: var(--glass-fill-solid); --glass-blur: none; }
+}
+/* set by main.tsx from 设置 / the OS ("降低透明度") */
+:root[data-reduce-transparency] { --glass-fill: var(--glass-fill-solid); --glass-fill-faint: var(--glass-fill-solid); --glass-blur: none; }
+
+/* The material. `--glass-tint` lays a colour (便签) over the fill; `--glass-base` swaps the fill. */
+.glass {
+  background:
+    var(--glass-noise) 0 0 / 140px 140px,
+    var(--glass-sheen),
+    linear-gradient(var(--glass-tint, transparent), var(--glass-tint, transparent)),
+    var(--glass-base, var(--glass-fill));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-inner), var(--glass-shadow);
+  color: var(--ink);
+  border: 0;
+}
+/* inside a window whose webview has nothing behind it (pet window): fill carries the look */
+.glass-solid { --glass-base: var(--glass-fill-solid); }
 
 * { box-sizing: border-box; }
 html, body, #root {
@@ -60,10 +148,14 @@ html, body, #root {
   font-family: var(--font);
   color: var(--text);
   font-size: 13px;
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent-strong); }
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(214, 140, 150, 0.3); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb { background: var(--fill-3); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::selection { background: color-mix(in oklab, var(--accent) 28%, transparent); }
+/* Windows: Acrylic sits behind the panel; a touch more fill keeps Win10's lighter blur readable */
+:root[data-platform="windows"][data-native-glass] { --glass-fill: color-mix(in oklab, var(--glass-fill-solid) 82%, transparent); }
