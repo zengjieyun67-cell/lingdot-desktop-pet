@@ -1,6 +1,6 @@
 /* Now Playing — the shared frosted-glass material (same sheet as widgets / notes / panel). */
 .card {
-  composes: glass from global;
+  composes: glass glass-lift from global;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -15,14 +15,15 @@
   border-radius: var(--r-sm);
   display: grid;
   place-items: center;
+  /* neutral glass tile (no colour gradient): a lighter pane inset in the card, white glyph */
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 50%),
-    linear-gradient(140deg, #ff6fa0, #a78bfa 55%, #5ac8fa);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.18);
+    radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, rgba(150, 165, 185, 0.55), rgba(70, 85, 105, 0.6));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.1), 0 6px 14px rgba(0, 0, 0, 0.16);
 }
-.note { font-size: 22px; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.note { width: 46%; height: 46%; color: #fff; --icon-stroke: 1.7; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2)); }
 .meta { min-width: 0; }
-.kicker { font-size: 10.5px; font-weight: 600; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kicker { font-size: 10px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title {
   font-family: var(--font-display);
   font-size: 16px;
@@ -34,8 +35,8 @@
   text-overflow: ellipsis;
 }
 .artist { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar { height: 3px; border-radius: 3px; background: var(--fill-3); margin-top: 8px; overflow: hidden; }
-.bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: var(--ink-2); animation: prog 24s linear infinite; }
+.bar { height: 2px; border-radius: 2px; background: var(--fill-3); margin-top: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 40%; border-radius: 2px; background: var(--ink-2); animation: prog 24s linear infinite; }
 @keyframes prog { from { width: 6%; } to { width: 96%; } }
 .play {
   width: 38px;
@@ -43,13 +44,14 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--fill-2);
+  background: var(--fill-1);
   color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--glass-top), 0 0 0 0.5px var(--glass-outline), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .play svg { width: 15px; height: 15px; fill: currentColor; }
 
-.compact { padding: 9px 10px; gap: 10px; border-radius: var(--r-md); }
-.compact .art { width: 40px; height: 40px; border-radius: 9px; }
+.compact { padding: 12px; gap: 12px; border-radius: var(--r-lg); }
+.compact .art { width: 44px; height: 44px; border-radius: 10px; }
 .compact .title { font-size: 14px; }
 .compact .play { width: 32px; height: 32px; }
 /* inside the panel sheet: a grouped row on the glass, not glass-on-glass */
@@ -59,3 +61,4 @@
   backdrop-filter: none;
   box-shadow: inset 0 1px 0 var(--glass-top), var(--card-shadow);
 }
+.onLight:hover { transform: none; box-shadow: inset 0 1px 0 var(--glass-top), var(--card-shadow-hover); }
