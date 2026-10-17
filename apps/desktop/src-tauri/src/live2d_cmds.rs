@@ -15,7 +15,31 @@ fn roots(app: &AppHandle, folder: Option<PathBuf>) -> Result<ScanRoots, String> 
     let app_live2d = app.path().app_data_dir().map_err(|e| e.to_string())?.join("live2d");
     Ok(match folder {
         Some(f) => ScanRoots::folder(home, app_live2d, f),
-        None => ScanRoots::standard(home, app_live2d),
+        None => {
+            #[allow(unused_mut)]
+            let mut r = ScanRoots::standard(home.clone(), app_live2d);
+            // Windows: 下载 / 桌面 / 文档 are often redirected (OneDrive, another drive) — scan the
+            // Known Folders too, besides %USERPROFILE%\Downloads etc. which `standard` covers.
+            #[cfg(target_os = "windows")]
+            {
+                let p = app.path();
+                for (dir, depth_hint) in [(p.download_dir().ok(), 5), (p.desktop_dir().ok(), 5), (p.document_dir().ok(), 4)] {
+                    let _ = depth_hint;
+                    if let Some(d) = dir {
+                        if !d.starts_with(&home) || d.components().count() > home.components().count() + 1 {
+                            r.extra.push(d);
+                        }
+                    }
+                }
+                for sub in ["OneDrive/Desktop", "OneDrive/Documents", "OneDrive/桌面", "OneDrive/文档"] {
+                    let d = home.join(sub);
+                    if d.is_dir() {
+                        r.extra.push(d);
+                    }
+                }
+            }
+            r
+        }
     })
 }
 
@@ -75,13 +99,13 @@ pub async fn import_live2d_folder(app: AppHandle, path: String) -> Result<Import
         .map_err(|e| e.to_string())?
 }
 
-/// 选择模型文件夹: native macOS folder picker (osascript, no extra plugin). None = cancelled.
+/// 选择模型文件夹: native folder picker (macOS osascript / Windows FolderBrowserDialog, no extra plugin). None = cancelled.
 #[tauri::command]
 pub async fn pick_live2d_folder() -> Result<Option<String>, String> {
     choose_folder("选择包含 .model3.json 的 Live2D 模型文件夹（也可以选放着 CubismSdkForWeb zip 的文件夹）").await
 }
 
-/// Native "choose folder" dialog (macOS, via osascript). `Ok(None)` when cancelled.
+/// Native "choose folder" dialog (macOS osascript, Windows PowerShell FolderBrowserDialog). `Ok(None)` when cancelled.
 pub async fn choose_folder(prompt: &str) -> Result<Option<String>, String> {
     #[cfg(target_os = "macos")]
     {
@@ -99,10 +123,32 @@ pub async fn choose_folder(prompt: &str) -> Result<Option<String>, String> {
         let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
         Ok(if p.is_empty() { None } else { Some(p) })
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let prompt = prompt.replace('\'', "''");
+        let script = format!(
+            "[Console]::OutputEncoding=[Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; \
+             $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='{prompt}'; $d.ShowNewFolderButton=$false; \
+             $o=New-Object System.Windows.Forms.Form; $o.TopMost=$true; \
+             if ($d.ShowDialog($o) -eq [System.Windows.Forms.DialogResult]::OK) {{ $d.SelectedPath }}"
+        );
+        let out = tauri::async_runtime::spawn_blocking(move || {
+            std::process::Command::new("powershell.exe")
+                .args(["-NoProfile", "-NonInteractive", "-STA", "-Command", &script])
+                .creation_flags(0x0800_0000)
+                .output()
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+        let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        Ok(if !out.status.success() || p.is_empty() { None } else { Some(p) })
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = prompt;
-        Err("文件夹选择器仅支持 macOS，请在下方输入文件夹路径".into())
+        Err("文件夹选择器仅支持 macOS / Windows，请在下方输入文件夹路径".into())
     }
 }
 
