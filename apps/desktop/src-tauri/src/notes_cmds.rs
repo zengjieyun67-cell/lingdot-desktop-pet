@@ -152,11 +152,22 @@ pub fn open_note_window(app: &AppHandle, id: &str) {
         let _ = w.set_focus();
         return;
     }
+    // Build off the main thread: creating a webview from a sync command / tray / shortcut
+    // handler blocks (Windows: can deadlock) the event loop while WebView2 starts.
+    let app = app.clone();
+    let id = id.to_string();
+    crate::windows::spawn_window_job(move || build_note_window(&app, &id));
+}
+
+fn build_note_window(app: &AppHandle, id: &str) {
+    let label = note_label(id);
+    if app.get_webview_window(&label).is_some() {
+        return;
+    }
     let Ok(n) = app.state::<AppState>().engine.db().get_note(id) else { return };
     let (w, h) = clamp_note_size(n.w, n.h);
     let effects = tauri::window::EffectsBuilder::new()
         .effect(tauri::window::Effect::Popover) // macOS vibrancy
-        .effect(tauri::window::Effect::Acrylic) // Windows 10/11 (each OS picks the first effect it supports)
         .state(tauri::window::EffectState::Active)
         .radius(16.0)
         .build();
@@ -164,7 +175,9 @@ pub fn open_note_window(app: &AppHandle, id: &str) {
         .title("便签")
         .decorations(false)
         .transparent(true)
-        .shadow(true)
+        // Windows: the native undecorated shadow is a hard rectangle (+1px frame) around the rounded
+        // CSS sheet — the sheet carries its own shadow instead.
+        .shadow(!cfg!(target_os = "windows"))
         .resizable(true)
         .maximizable(false)
         .minimizable(false)
