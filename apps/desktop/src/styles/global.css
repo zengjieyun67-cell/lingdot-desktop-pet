@@ -207,5 +207,20 @@ a { color: var(--accent-strong); }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--fill-3); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 ::selection { background: color-mix(in oklab, var(--accent) 28%, transparent); }
-/* Windows: Acrylic sits behind the panel; a touch more fill keeps Win10's lighter blur readable */
-:root[data-platform="windows"][data-native-glass] { --glass-fill: color-mix(in oklab, var(--glass-fill-solid) 82%, transparent); }
+/* ------------------------------------------------------------------ material per window
+   One sheet, three situations (main.tsx sets the attributes):
+   · [data-scene]        桌面 / 屏保: the page paints the sea behind its widgets → real frosted glass.
+   · macOS               panel + notes keep native vibrancy behind the webview (unchanged from build-8).
+   · neither             a transparent window over other apps (Windows panel / notes / pet):
+                         the webview cannot see what is behind it, so a CSS blur only costs GPU time
+                         and the sheet looked "fully transparent" or flat depending on the window.
+                         → the solid fill, no backdrop-filter. Same look focused or not, on every Windows build.
+   Wallpaper Engine-style rule: every floating sheet is the same fill, rim, radius and shadow. */
+:root[data-tauri]:not([data-platform="macos"]):not([data-scene]) {
+  --glass-fill: var(--glass-fill-solid);
+  --glass-fill-faint: var(--glass-fill-solid);
+  --glass-blur: none;
+  --overlay-blur: none;
+}
+/* WebView2 pays dearly for large / many backdrop blurs over the animated scene: lighter on Windows */
+:root[data-platform="windows"][data-scene] { --glass-blur: blur(18px) saturate(160%); --halo-blur: none; }
