@@ -49,8 +49,7 @@
         "visible": false,
         "windowEffects": {
           "effects": [
-            "popover",
-            "acrylic"
+            "popover"
           ],
           "state": "active",
           "radius": 22
