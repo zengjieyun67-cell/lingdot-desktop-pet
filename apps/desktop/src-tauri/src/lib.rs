@@ -108,7 +108,23 @@ pub fn run() {
                 pending_note_geom: Mutex::new(Default::default()),
             });
 
-            // ---- Live2D: find + import the user's own model when the configured one is missing
+            // ---- Live2D: the imported model lives in <appData>/live2d. Allow it on the asset protocol
+            // at runtime too (the static `$APPDATA/live2d/**` glob can miss on Windows when the
+            // profile path is redirected or contains glob metacharacters).
+            if let Ok(dir) = app.path().app_data_dir() {
+                let l2d = dir.join("live2d");
+                let _ = std::fs::create_dir_all(&l2d);
+                let _ = app.asset_protocol_scope().allow_directory(&l2d, true);
+            }
+            // ---- Windows: no native Acrylic / undecorated shadow on the panel. Acrylic turns solid
+            // whenever the window loses focus (Win11), lags while dragging (Win10), ignores the
+            // rounded corners and is off entirely with "透明效果" disabled — the CSS sheet is the
+            // one material instead, identical on every window.
+            #[cfg(target_os = "windows")]
+            if let Some(p) = app.get_webview_window("panel") {
+                let _ = p.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
+                let _ = p.set_shadow(false);
+            }
             live2d_cmds::auto_import_on_startup(app.handle());
 
             // ---- local server (127.0.0.1 only)
