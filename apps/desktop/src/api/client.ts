@@ -38,6 +38,40 @@ export async function startDragging(): Promise<void> {
   await getCurrentWindow().startDragging();
 }
 
+/** Pixels the pointer must travel with the button held before a press becomes a window drag. */
+export const DRAG_START_PX = 4;
+
+/**
+ * Drag the borderless window from a mousedown — but only once the pointer actually moves.
+ *
+ * Calling `startDragging()` right on mousedown hands the mouse to the OS move loop; on Windows
+ * that loop swallows the matching mouseup / click / dblclick (tauri-apps/tauri#10767) and
+ * toggles focus, so anything in a drag area felt dead ("点不动"). Waiting for real movement keeps
+ * plain clicks and double-clicks working on every platform.
+ */
+export function dragWindowOnMove(
+  e: { button: number; clientX: number; clientY: number },
+  start: () => Promise<void> | void = startDragging,
+): void {
+  if (e.button !== 0) return;
+  const x0 = e.clientX;
+  const y0 = e.clientY;
+  const move = (ev: MouseEvent) => {
+    if ((ev.buttons & 1) === 0) return done();
+    if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < DRAG_START_PX) return;
+    done();
+    void start();
+  };
+  const done = () => {
+    window.removeEventListener("mousemove", move, true);
+    window.removeEventListener("mouseup", done, true);
+    window.removeEventListener("blur", done);
+  };
+  window.addEventListener("mousemove", move, true);
+  window.addEventListener("mouseup", done, true);
+  window.addEventListener("blur", done);
+}
+
 export async function hideCurrentWindow(): Promise<void> {
   if (!isTauri()) return;
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
