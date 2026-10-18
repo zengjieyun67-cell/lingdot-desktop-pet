@@ -25,8 +25,15 @@ function Root() {
   const inTauri = "__TAURI_INTERNALS__" in window;
   if (inTauri) html.dataset.tauri = "";
   const route = window.location.hash.replace(/^#\/?/, "") || "panel";
-  // the panel window carries native vibrancy (macOS) / Acrylic (Windows): the sheet fills the window
-  if (inTauri && platform !== "other" && !route.startsWith("pet") && !route.startsWith("desktop") && !route.startsWith("screensaver") && !route.startsWith("note/")) html.dataset.nativeGlass = "";
+  // Which material this window can have (styles/global.css):
+  //  - data-scene: 桌面 / 屏保 — the page paints its own backdrop (the sea), so glass really blurs.
+  //  - data-native-glass: macOS panel with native vibrancy behind the webview; the sheet fills the window.
+  //  - otherwise a transparent window with nothing the webview can blur: an opaque-ish fill.
+  //    (Windows never gets native Acrylic any more: it turned solid on blur, ignored our rounded
+  //    corners and lagged while dragging — one CSS sheet looks the same everywhere.)
+  const scene = route.startsWith("desktop") || route.startsWith("screensaver");
+  if (scene) html.dataset.scene = "";
+  if (inTauri && platform === "macos" && !scene && !route.startsWith("pet") && !route.startsWith("note/")) html.dataset.nativeGlass = "";
   if (new URLSearchParams(window.location.search).has("reduceTransparency")) html.dataset.reduceTransparency = "";
 }
 
