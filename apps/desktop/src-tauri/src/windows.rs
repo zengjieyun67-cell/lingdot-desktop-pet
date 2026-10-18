@@ -248,13 +248,14 @@ fn current_mode(app: &AppHandle) -> String {
 /// desktop level on the pet's current screen). Called on startup and on settings change.
 pub fn apply_display_mode(app: &AppHandle, s: &AppSettings) {
     if s.display_mode == "desktop" {
+        // the pet window is hidden once the scene is on screen (place_and_show_desktop)
         show_desktop(app, s);
-        if let Some(w) = pet(app) {
-            let _ = w.hide();
-        }
     } else {
+        // Keep the scene's webview alive (hidden): re-creating a full-screen WebView2 / WKWebView,
+        // re-decoding the sea photos and re-loading Live2D took seconds on every switch.
+        // A hidden page pauses its animation loops (visibilitychange).
         if let Some(d) = app.get_webview_window(DESKTOP_LABEL) {
-            let _ = d.destroy();
+            let _ = d.hide();
         }
         if let Some(w) = pet(app) {
             if s.pet_visible {
@@ -266,6 +267,52 @@ pub fn apply_display_mode(app: &AppHandle, s: &AppSettings) {
 }
 
 fn show_desktop(app: &AppHandle, s: &AppSettings) {
+    // Fast path: the scene already exists (it is only hidden in 桌宠模式) — just place + show it.
+    if let Some(w) = app.get_webview_window(DESKTOP_LABEL) {
+        place_and_show_desktop(app, &w, s);
+        return;
+    }
+    // Creating a webview window from the main thread (sync commands, tray / shortcut handlers)
+    // blocks — and on Windows can deadlock — the event loop until WebView2 is up, freezing every
+    // window. Build it on a worker thread instead (Tauri marshals the native part itself).
+    let app = app.clone();
+    let s = s.clone();
+    spawn_window_job(move || {
+        if app.get_webview_window(DESKTOP_LABEL).is_some() {
+            return;
+        }
+        if let Some(w) = build_desktop(&app) {
+            // the user may have switched back to 桌宠模式 while WebView2 was starting
+            if current_mode(&app) == "desktop" {
+                place_and_show_desktop(&app, &w, &s);
+            }
+        }
+    });
+}
+
+/// Run window-creating work off the main thread (see `show_desktop`).
+pub fn spawn_window_job(f: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new().name("lingdot-window".into()).spawn(f).map(|_| ()).unwrap_or_else(|e| eprintln!("window job: {e}"));
+}
+
+fn build_desktop(app: &AppHandle) -> Option<WebviewWindow> {
+    tauri::WebviewWindowBuilder::new(app, DESKTOP_LABEL, tauri::WebviewUrl::App("index.html#/desktop".into()))
+        .title("小喵的桌面")
+        .decorations(false)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .skip_taskbar(true)
+        .shadow(false)
+        .focused(false)
+        .visible(false)
+        .always_on_bottom(true)
+        .accept_first_mouse(true)
+        .build()
+        .ok()
+}
+
+fn place_and_show_desktop(app: &AppHandle, win: &WebviewWindow, s: &AppSettings) {
     // The screen the pet is on (or the primary one).
     let anchor = pet(app);
     let monitor = anchor
@@ -276,33 +323,14 @@ fn show_desktop(app: &AppHandle, s: &AppSettings) {
         Some(m) => (*m.position(), *m.size()),
         None => (PhysicalPosition::new(0, 0), tauri::PhysicalSize::new(1440, 900)),
     };
-    let win = match app.get_webview_window(DESKTOP_LABEL) {
-        Some(w) => w,
-        None => {
-            let built = tauri::WebviewWindowBuilder::new(app, DESKTOP_LABEL, tauri::WebviewUrl::App("index.html#/desktop".into()))
-                .title("小喵的桌面")
-                .decorations(false)
-                .resizable(false)
-                .maximizable(false)
-                .minimizable(false)
-                .skip_taskbar(true)
-                .shadow(false)
-                .focused(false)
-                .visible(false)
-                .always_on_bottom(true)
-                .accept_first_mouse(true)
-                .build();
-            match built {
-                Ok(w) => w,
-                Err(_) => return,
-            }
-        }
-    };
     let _ = win.set_position(pos);
     let _ = win.set_size(size);
-    set_desktop_level(app, &win, s.desktop_interactive);
+    set_desktop_level(app, win, s.desktop_interactive);
     if s.pet_visible {
         let _ = win.show();
+    }
+    if let Some(w) = pet(app) {
+        let _ = w.hide();
     }
 }
 
@@ -371,6 +399,14 @@ pub fn show_screensaver(app: &AppHandle) {
         None => (PhysicalPosition::new(0, 0), tauri::PhysicalSize::new(1440, 900)),
     };
     hide_panel(app);
+    let app = app.clone();
+    spawn_window_job(move || build_screensaver(&app, pos, size));
+}
+
+fn build_screensaver(app: &AppHandle, pos: PhysicalPosition<i32>, size: tauri::PhysicalSize<u32>) {
+    if app.get_webview_window(SCREENSAVER_LABEL).is_some() {
+        return;
+    }
     let built = tauri::WebviewWindowBuilder::new(app, SCREENSAVER_LABEL, tauri::WebviewUrl::App("index.html#/screensaver".into()))
         .title("lingdot 屏保")
         .decorations(false)
