@@ -1,6 +1,6 @@
 /* lingdot panel — one frosted-glass sheet (tokens in styles/global.css).
-   On macOS the window also gets native vibrancy (tauri.conf windowEffects), on Windows Acrylic/Mica;
-   the CSS fill below is the same material either way. */
+   On macOS the window also gets native vibrancy (tauri.conf windowEffects); on Windows the CSS sheet
+   alone is the material (no Acrylic: see the material rules in global.css). */
 
 .shell {
   composes: glass from global;
@@ -417,8 +417,8 @@ button.card:active { transform: scale(0.985); }
   justify-content: center;
   padding: 22px;
   z-index: 10;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: var(--overlay-blur, blur(8px));
+  -webkit-backdrop-filter: var(--overlay-blur, blur(8px));
 }
 .dialog {
   composes: glass from global;
