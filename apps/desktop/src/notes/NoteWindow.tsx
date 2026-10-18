@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, currentWindowLogicalSize, setCurrentWindowSize, startDragging } from "../api/client";
+import { api, currentWindowLogicalSize, dragWindowOnMove, setCurrentWindowSize } from "../api/client";
 import type { Note } from "../api/types";
 import { NoteBody } from "./NoteBody";
 import { ColorDots, IconBtn, tintVars } from "./NoteParts";
@@ -40,7 +40,7 @@ export function NoteWindow({ id }: { id: string }) {
         onMouseDown={(e) => {
           if (e.button !== 0 || (e.target as HTMLElement).closest("button, input")) return;
           e.preventDefault();
-          void startDragging();
+          dragWindowOnMove(e); // after real movement only: keeps 双击置顶 + clicks working on Windows
         }}
         onDoubleClick={() => patch({ pinned: !note.pinned })}
         title="拖动移动 · 双击置顶 / 取消置顶"
