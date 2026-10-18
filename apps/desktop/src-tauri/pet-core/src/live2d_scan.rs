@@ -392,6 +392,22 @@ fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// A path as the webview should see it: Windows verbatim prefixes (`\\?\C:\…`, `\\?\UNC\…`, from
+/// `canonicalize`) are stripped — the frontend's asset-URL builder and the asset protocol scope
+/// both expect a plain `C:\…` path.
+pub fn plain_path(p: &Path) -> String {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        if rest.len() >= 2 && rest.as_bytes()[1] == b':' {
+            return rest.to_string();
+        }
+    }
+    s.into_owned()
+}
+
 /// Folder name used under `<appData>/live2d/models/`.
 pub fn safe_dir_name(name: &str) -> String {
     let s: String = name
@@ -481,8 +497,8 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
         let (m, c) = existing_import(app, hint);
         if let (Some(m), Some(c)) = (&m, &c) {
             out.model_name = Some(model_stem(m));
-            out.model_path = Some(m.to_string_lossy().into_owned());
-            out.core_path = Some(c.to_string_lossy().into_owned());
+            out.model_path = Some(plain_path(&m));
+            out.core_path = Some(plain_path(&c));
             out.already_imported = true;
             out.message = format!("已在使用导入的 Live2D 模型「{}」", out.model_name.clone().unwrap_or_default());
             return out;
@@ -501,7 +517,7 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
                 out.model_source = Some(c.model_json.parent().unwrap_or(&c.model_json).to_string_lossy().into_owned());
                 out.model_name = Some(model_stem(&p));
                 out.already_imported = is_inside(&c.model_json, app);
-                out.model_path = Some(p.to_string_lossy().into_owned());
+                out.model_path = Some(plain_path(&p));
             }
             Err(e) => errors.push(e),
         },
@@ -521,7 +537,7 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
                         Ok(p) => {
                             out.model_source = Some(zip.to_string_lossy().into_owned());
                             out.model_name = Some(model_stem(&p));
-                            out.model_path = Some(p.to_string_lossy().into_owned());
+                            out.model_path = Some(plain_path(&p));
                         }
                         Err(e) => errors.push(e),
                     }
@@ -535,7 +551,7 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
                 // Fall back to anything already imported.
                 if let (Some(m), _) = existing_import(app, hint) {
                     out.model_name = Some(model_stem(&m));
-                    out.model_path = Some(m.to_string_lossy().into_owned());
+                    out.model_path = Some(plain_path(&m));
                     out.already_imported = true;
                 }
             }
@@ -545,26 +561,26 @@ pub fn scan_and_import(roots: &ScanRoots, hint: Option<&str>, force: bool) -> Im
     // ---- core
     if let Some((c, _)) = res.cores.iter().find(|(c, _)| *c != core_dest) {
         if !force && core_dest.is_file() {
-            out.core_path = Some(core_dest.to_string_lossy().into_owned());
+            out.core_path = Some(plain_path(&core_dest));
         } else {
             match fs::copy(c, &core_dest) {
                 Ok(_) => {
                     out.core_source = Some(c.to_string_lossy().into_owned());
-                    out.core_path = Some(core_dest.to_string_lossy().into_owned());
+                    out.core_path = Some(plain_path(&core_dest));
                 }
                 Err(e) => errors.push(format!("复制 Cubism Core 失败：{e}")),
             }
         }
     }
     if out.core_path.is_none() && core_dest.is_file() {
-        out.core_path = Some(core_dest.to_string_lossy().into_owned());
+        out.core_path = Some(plain_path(&core_dest));
     }
     if out.core_path.is_none() {
         for (zip, _) in &res.sdk_zips {
             match extract_core_from_sdk_zip(zip, &core_dest) {
                 Ok(()) => {
                     out.core_source = Some(zip.to_string_lossy().into_owned());
-                    out.core_path = Some(core_dest.to_string_lossy().into_owned());
+                    out.core_path = Some(plain_path(&core_dest));
                     break;
                 }
                 Err(e) => errors.push(e),
@@ -910,5 +926,51 @@ mod tests {
         append_pack(&exe, &[("../../evil.txt".into(), b"no".to_vec())]).unwrap();
         assert!(unpack_embedded(&exe, &d.0.join("out")).is_err());
         assert!(!d.0.join("evil.txt").exists());
+    }
+
+    #[test]
+    fn plain_path_strips_windows_verbatim_prefix() {
+        assert_eq!(plain_path(Path::new(r"\\?\C:\Users\张三\AppData\Roaming\x\a.model3.json")), r"C:\Users\张三\AppData\Roaming\x\a.model3.json");
+        assert_eq!(plain_path(Path::new(r"\\?\UNC\server\share\m.model3.json")), r"\\server\share\m.model3.json");
+        assert_eq!(plain_path(Path::new("/Users/d/Library/Application Support/x/m.model3.json")), "/Users/d/Library/Application Support/x/m.model3.json");
+        // a verbatim path that is not a drive path is left alone
+        assert_eq!(plain_path(Path::new(r"\\?\Volume{abc}\m")), r"\\?\Volume{abc}\m");
+    }
+
+    #[test]
+    fn unicode_and_space_paths_import_from_embedded_pack() {
+        // A user profile / exe folder with CJK + spaces (e.g. C:\Users\张 三\下载\灵点桌宠 免安装\).
+        let d = Tmp::new("uni");
+        let base = d.0.join("张 三/下载/灵点桌宠 免安装");
+        fs::create_dir_all(&base).unwrap();
+        let exe = base.join("LingdotPet.exe");
+        fs::write(&exe, b"MZ").unwrap();
+        let model = r#"{"Version":3,"FileReferences":{"Moc":"free1.moc3","Textures":["free1.4096/texture_00.png"]}}"#;
+        append_pack(
+            &exe,
+            &[
+                ("xiaomiao-live2d/free1/free1.model3.json".into(), model.as_bytes().to_vec()),
+                ("xiaomiao-live2d/free1/free1.moc3".into(), b"MOC3".to_vec()),
+                ("xiaomiao-live2d/free1/free1.4096/texture_00.png".into(), b"png".to_vec()),
+                (format!("xiaomiao-live2d/{CORE_FILE}"), vec![b'x'; 20_000]),
+            ],
+        )
+        .unwrap();
+        let data = d.0.join("张 三/AppData/Roaming/com.desktoppet.app");
+        let unpacked = unpack_embedded(&exe, &data.join("embedded-pack")).unwrap().expect("pack");
+        let app = data.join("live2d");
+        let mut roots = ScanRoots::standard(d.0.join("张 三"), &app);
+        roots.preferred.push(unpacked);
+        roots.preferred.push(base.clone());
+        let out = scan_and_import(&roots, None, false);
+        assert!(out.complete(), "{}", out.message);
+        let mp = PathBuf::from(out.model_path.clone().unwrap());
+        assert!(mp.starts_with(&app), "{mp:?}");
+        // every file the model references resolves next to the imported model3.json
+        assert!(mp.parent().unwrap().join("free1.moc3").is_file());
+        assert!(mp.parent().unwrap().join("free1.4096/texture_00.png").is_file());
+        // second launch reuses the import without rescanning
+        let again = scan_and_import(&roots, out.model_path.as_deref(), false);
+        assert!(again.already_imported && again.model_path == out.model_path);
     }
 }
