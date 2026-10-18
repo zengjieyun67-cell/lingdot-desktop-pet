@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { PetMood, Site } from "@desktop-pet/shared";
-import { api, errorText, hideCurrentWindow, on, startDragging } from "../api/client";
+import { api, dragWindowOnMove, errorText, hideCurrentWindow, on } from "../api/client";
 import type { AppSettings, ConnectionInfo, ConnectionStatus, NotificationEventPayload } from "../api/types";
 import { ErrorBanner, Spinner } from "./ui";
 import { TasksView } from "./TasksView";
@@ -29,7 +29,7 @@ function onHeaderMouseDown(e: React.MouseEvent) {
   if (e.button !== 0) return;
   if ((e.target as HTMLElement).closest("button, a, input, select, textarea")) return;
   e.preventDefault();
-  void startDragging();
+  dragWindowOnMove(e);
 }
 
 const MOOD_TEXT: Record<PetMood, { face: string; text: string }> = {
