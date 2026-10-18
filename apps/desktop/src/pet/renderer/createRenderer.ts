@@ -5,13 +5,56 @@ import { SvgCatgirlRenderer } from "./SvgCatgirlRenderer";
 
 export const BUNDLED_CORE_URL = "/live2d/live2dcubismcore.min.js";
 
+/** Strip Windows verbatim prefixes (`\\?\C:\…`, `\\?\UNC\server\…`) that `canonicalize` produces. */
+export function plainPath(path: string): string {
+  const p = path.trim();
+  if (/^\\\\\?\\UNC\\/i.test(p)) return "\\\\" + p.slice(8);
+  if (/^\\\\\?\\[A-Za-z]:/.test(p)) return p.slice(4);
+  return p;
+}
+
+/** Is this an absolute local file path (POSIX, `C:\…` / `C:/…`, or a `\\server\share` UNC path)? */
+export function isLocalPath(path: string): boolean {
+  const p = plainPath(path);
+  return p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p) || /^\\\\[^\\]/.test(p);
+}
+
+/**
+ * Asset-protocol URL for a local file that keeps the path's directory structure in the URL.
+ *
+ * Tauri's own `convertFileSrc` percent-encodes the WHOLE path (every `/` and `\` becomes
+ * %2F / %5C), so the URL has a single path segment. pixi-live2d-display resolves the model's
+ * moc / textures / motions *relative* to the model3.json URL — against a one-segment URL they
+ * all landed at the protocol root (`http://asset.localhost/free1.moc3`) and 404'd: the model
+ * "was not found" even though it was imported. Here every segment is encoded on its own and
+ * joined with `/` (the asset protocol percent-decodes the path; Windows accepts `C:/…`).
+ *
+ * `base` is the protocol origin (`http://asset.localhost/` on Windows, `asset://localhost/` on macOS).
+ */
+export function fileUrl(path: string, base: string): string {
+  let p = plainPath(path).replace(/\\/g, "/");
+  const unc = p.startsWith("//");
+  p = p.replace(/^\/+/, "");
+  const encoded = p.split("/").filter((seg, i) => seg !== "" || i === 0).map((seg) => encodeURIComponent(seg)).join("/");
+  // POSIX keeps its leading "/" (encoded as %2F so the protocol sees an absolute path);
+  // a drive path starts with "C%3A"; UNC keeps its two leading slashes.
+  const lead = unc ? "%2F%2F" : /^[A-Za-z]:/.test(p) ? "" : "%2F";
+  return (base.endsWith("/") ? base : base + "/") + lead + encoded;
+}
+
+/** The asset protocol origin for this platform (derived from Tauri so it always matches). */
+export function assetBase(): string {
+  const probe = convertFileSrc("x");
+  return probe.endsWith("x") ? probe.slice(0, -1) : /Windows/i.test(navigator.userAgent) ? "http://asset.localhost/" : "asset://localhost/";
+}
+
 /** Resolve a user-entered path to a URL the webview can load. */
 export function resolveAssetUrl(path: string): string {
-  const p = path.trim();
+  const p = plainPath(path);
   if (!p) return "";
   if (/^https?:\/\//i.test(p)) return p; // note: CSP only allows local sources by default
   if (p.startsWith("/live2d/")) return p; // bundled into the app (public/live2d)
-  if (isTauri() && (p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p))) return convertFileSrc(p);
+  if (isTauri() && isLocalPath(p)) return fileUrl(p, assetBase());
   return p;
 }
 
