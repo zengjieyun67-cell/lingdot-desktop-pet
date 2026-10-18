@@ -156,8 +156,8 @@
     0 0 140px 20px color-mix(in oklab, var(--tod-glow) 35%, transparent),
     inset 0 2px 1px color-mix(in oklab, white 55%, transparent),
     inset 0 -40px 80px color-mix(in oklab, var(--tod-base) 20%, transparent);
-  backdrop-filter: blur(28px) saturate(1.5);
-  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: var(--halo-blur, blur(28px) saturate(1.5));
+  -webkit-backdrop-filter: var(--halo-blur, blur(28px) saturate(1.5));
   animation: haloBreath 9s ease-in-out infinite;
 }
 .haloRing {
