@@ -251,10 +251,23 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
     };
   }, [isDesktop, touchReact]);
 
-  const mountRenderer = useCallback(async (s: AppSettings) => {
+  // Mounts are serialised: on first launch the startup auto-import emits `settings-changed`
+  // while the boot mount is still loading — two mounts racing into the same stage left a
+  // destroyed canvas on screen (or fell back to SVG) even though the model was imported.
+  const mountChain = useRef<Promise<void>>(Promise.resolve());
+  const mountRenderer = useCallback((s: AppSettings) => {
+    const run = mountChain.current.then(() => mountRendererNow(s)).catch(() => undefined);
+    mountChain.current = run;
+    return run;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const mountRendererNow = async (s: AppSettings) => {
     const stage = stageRef.current;
     if (!stage) return;
+    // a mount queued behind one that already loaded this exact model: nothing to do
+    if (rendererRef.current && mountedKey.current === rendererKey(s)) return;
     rendererRef.current?.destroy();
+    rendererRef.current = null;
     stage.replaceChildren();
     mountedKey.current = rendererKey(s);
     const res = await createRenderer(s, stage, isTauri() ? { autoImport: autoImportLive2D } : {});
@@ -266,7 +279,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
     res.renderer.setDisplayState?.(displayRef.current);
     setKind(res.renderer.kind);
     localStorage.setItem("pet-renderer-status", JSON.stringify({ status: res.status, error: res.error ?? null, at: Date.now() }));
-  }, []);
+  };
 
   const checkRunningTasks = useCallback(async () => {
     try {
@@ -349,6 +362,7 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
           refreshDisplay();
           setAnimations(s.animationsEnabled);
           if (!prev || (rendererKey(prev) !== rendererKey(s) && mountedKey.current !== rendererKey(s))) void mountRenderer(s);
+          // (queued behind any mount in flight; skipped there if that one already loaded this model)
           else rendererRef.current?.setAnimationsEnabled(s.animationsEnabled);
         }),
         await on<NotificationEventPayload>("notification", ({ record, sound }) => {
