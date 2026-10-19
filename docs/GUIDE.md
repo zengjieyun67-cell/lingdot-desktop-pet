@@ -63,7 +63,8 @@
 
 网站监控需要 Chrome 扩展。没连上扩展时，面板「任务」页顶部会有一张「让小喵帮你盯 ChatGPT」的引导卡片，跟着三步做就行（配对码可以直接在卡片里复制）：
 
-1. Chrome 打开 `chrome://extensions` → 右上角打开 **开发者模式** → **加载已解压的扩展程序** → 选桌面「lingdot-desktop-pet/浏览器扩展」。
+1. Chrome 打开 `chrome://extensions` → 右上角打开 **开发者模式** → **加载已解压的扩展程序** → 选解压好的扩展文件夹（从 [Releases](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/latest) 下载 `browser-extension.zip` 并解压到固定位置，文件夹里有 `manifest.json`）。
+   以后扩展有更新：用新文件覆盖该文件夹，再在 `chrome://extensions` 的扩展卡片上点 ↻ 重新加载。
 2. 小喵面板 → 任务页引导卡片（或 设置 → 扩展）→ **复制配对码**。
 3. 点浏览器里的扩展图标 → 设置 → 粘贴 → **保存并连接**。
 4. 在扩展弹窗里给 ChatGPT 点 **授权**。之后回答生成完、出错或需要你操作时，小喵会提醒你。
