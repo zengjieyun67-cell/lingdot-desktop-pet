@@ -1,5 +1,5 @@
 //! Free voice chat with 小喵: macOS speech recognition → existing chat pipeline
-//! (DeepSeek preset + persona prompt) → macOS system voice.
+//! (any OpenAI-compatible provider + persona prompt) → macOS system voice.
 //!
 //! The loop lives here in Rust so it keeps working while the panel is hidden:
 //!   push-to-talk : listen while held → reply → speak → idle
