@@ -11,6 +11,7 @@ pub mod activity;
 pub mod chat;
 pub mod db;
 pub mod engine;
+pub mod geom;
 pub mod live2d_scan;
 pub mod model;
 pub mod notes;
