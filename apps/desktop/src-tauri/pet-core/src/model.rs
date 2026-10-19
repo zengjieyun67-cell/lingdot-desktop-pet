@@ -246,10 +246,13 @@ pub struct AppSettings {
     pub meal_reminders: bool,
     pub late_night_reminders: bool,
     pub chat_enabled: bool,
-    /// deepseek | custom (UI preset for the OpenAI-compatible chat)
+    /// Chat preset id (see `chat_provider::PRESETS`: deepseek, openai, …, ollama, custom).
+    /// Every preset uses the OpenAI-compatible `/chat/completions` API.
     pub chat_provider: String,
     pub chat_endpoint: String,
     pub chat_model: String,
+    /// Chat settings schema version (0 = before build-13 provider presets).
+    pub chat_config_version: u32,
     /// Last position of the panel window after the user dragged it (physical px).
     pub panel_position: Option<PetPosition>,
     // ---- 语音 (free: macOS speech recognition + system voice)
@@ -308,6 +311,8 @@ pub fn clamp_pet_scale(v: f64) -> f64 {
 
 pub const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
 pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-flash";
+/// Current chat settings schema (2 = provider presets, build-13).
+pub const CHAT_CONFIG_VERSION: u32 = 2;
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -341,6 +346,8 @@ impl Default for AppSettings {
             chat_provider: "deepseek".into(),
             chat_endpoint: DEEPSEEK_BASE_URL.into(),
             chat_model: DEEPSEEK_DEFAULT_MODEL.into(),
+            // 0 so that settings saved by older builds (field missing) run the migration once.
+            chat_config_version: 0,
             panel_position: None,
             voice_enabled: false,
             voice_name: String::new(),
@@ -405,11 +412,25 @@ impl AppSettings {
             .filter(|c| c.is_ascii_alphanumeric() || "._:/-@".contains(*c))
             .take(100)
             .collect();
-        if !["deepseek", "custom"].contains(&self.chat_provider.as_str())
-            || (self.chat_provider == "deepseek" && !crate::chat::is_deepseek_endpoint(&self.chat_endpoint))
-        {
-            // Older installs (or a hand-edited URL) keep their endpoint and show as 自定义.
-            self.chat_provider = "custom".into();
+        if self.chat_config_version < CHAT_CONFIG_VERSION {
+            // Before build-13 the DeepSeek preset implied api.deepseek.com; an older install
+            // (or a hand-edited URL) with another host keeps its endpoint and shows as 自定义.
+            if self.chat_provider == "deepseek"
+                && !self.chat_endpoint.is_empty()
+                && !crate::chat::is_deepseek_endpoint(&self.chat_endpoint)
+            {
+                self.chat_provider = crate::chat_provider::CUSTOM.into();
+            }
+            self.chat_config_version = CHAT_CONFIG_VERSION;
+        }
+        self.chat_provider = crate::chat_provider::normalize_provider(&self.chat_provider).into();
+        if let Some(p) = crate::chat_provider::preset(&self.chat_provider) {
+            if self.chat_endpoint.is_empty() {
+                self.chat_endpoint = p.base_url.into();
+            }
+            if self.chat_model.is_empty() {
+                self.chat_model = p.default_model.into();
+            }
         }
         self.voice_name = self
             .voice_name
@@ -492,5 +513,39 @@ mod settings_tests {
         assert_eq!(old.chat_endpoint, "https://api.openai.com/v1");
         let bad = AppSettings { chat_provider: "evil".into(), ..Default::default() }.sanitized();
         assert_eq!(bad.chat_provider, "custom");
+    }
+
+    #[test]
+    fn chat_settings_migration() {
+        // build-12 DeepSeek user: unchanged, just stamped with the new version
+        let old: AppSettings =
+            serde_json::from_str(r#"{"chatProvider":"deepseek","chatEndpoint":"https://api.deepseek.com","chatModel":"deepseek-v4-pro"}"#).unwrap();
+        assert_eq!(old.chat_config_version, 0);
+        let s = old.sanitized();
+        assert_eq!((s.chat_provider.as_str(), s.chat_endpoint.as_str(), s.chat_model.as_str()), ("deepseek", "https://api.deepseek.com", "deepseek-v4-pro"));
+        assert_eq!(s.chat_config_version, CHAT_CONFIG_VERSION);
+        // build-12 自定义 user keeps everything
+        let old: AppSettings =
+            serde_json::from_str(r#"{"chatProvider":"custom","chatEndpoint":"http://localhost:11434/v1","chatModel":"qwen2.5"}"#).unwrap();
+        let s = old.sanitized();
+        assert_eq!((s.chat_provider.as_str(), s.chat_endpoint.as_str()), ("custom", "http://localhost:11434/v1"));
+        // after migration, a preset may point at another URL (e.g. a proxy) without flipping to 自定义
+        let v2 = AppSettings {
+            chat_provider: "deepseek".into(),
+            chat_endpoint: "https://my-proxy.example.com/v1".into(),
+            chat_config_version: CHAT_CONFIG_VERSION,
+            ..Default::default()
+        }
+        .sanitized();
+        assert_eq!(v2.chat_provider, "deepseek");
+        // new presets survive a round trip
+        let o = AppSettings { chat_provider: "openrouter".into(), chat_endpoint: String::new(), chat_model: String::new(), ..Default::default() }.sanitized();
+        assert_eq!((o.chat_endpoint.as_str(), o.chat_model.as_str()), ("https://openrouter.ai/api/v1", "openai/gpt-4o-mini"));
+        let json = serde_json::to_string(&o).unwrap();
+        let back: AppSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.sanitized(), o);
+        // fresh install
+        let d = AppSettings::default().sanitized();
+        assert_eq!((d.chat_provider.as_str(), d.chat_config_version), ("deepseek", CHAT_CONFIG_VERSION));
     }
 }
