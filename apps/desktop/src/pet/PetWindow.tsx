@@ -27,6 +27,7 @@ import { hitArea, ShakeDetector, TouchReactor, type TouchKind } from "./touchRea
 import type { PetRenderer } from "./renderer/PetRenderer";
 import { PatDetector, PersonaController, type Spoken } from "./persona";
 import { playChime } from "./chime";
+import { feedIsFor, GazeIdle, gazeOffset, reachFor, type CursorFeed } from "./gaze";
 import { scaleFromWheel, scalePercent } from "../lib/petSize";
 import styles from "./Pet.module.css";
 
@@ -83,6 +84,28 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
   quietRef.current = quiet;
   const stageRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<PetRenderer | null>(null);
+  // which window the Rust cursor feed addresses us as
+  const gazeLabel = !isDesktop ? "pet" : window.location.hash.includes("screensaver") ? "screensaver" : "desktop";
+  const gazeIdle = useRef(new GazeIdle());
+  /** Look at a point given in window logical px (clientX/Y, or the Rust feed's x/y). */
+  const lookAtWindowPoint = useCallback(
+    (x: number, y: number) => {
+      const r = rendererRef.current;
+      const el = stageRef.current;
+      if (!r || !el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      const { dx, dy } = gazeOffset(
+        { x, y },
+        { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        r.headAnchor?.() ?? undefined,
+        reachFor(window.innerWidth, window.innerHeight, isDesktop),
+      );
+      r.lookAt(dx, dy);
+      gazeIdle.current.moved(Date.now());
+    },
+    [isDesktop],
+  );
   const settingsRef = useRef<AppSettings | null>(null);
   const personaRef = useRef<PersonaController | null>(null);
   const patRef = useRef(new PatDetector());
@@ -352,7 +375,14 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
             speak(persona.say("woke"));
           }
         }),
-        await on<{ dx: number; dy: number }>("pet-cursor", ({ dx, dy }) => rendererRef.current?.lookAt(dx, dy)),
+        await on<CursorFeed>("pet-cursor", (p) => {
+          if (!feedIsFor(p, gazeLabel)) return;
+          if (typeof p.x === "number" && typeof p.y === "number") lookAtWindowPoint(p.x, p.y);
+          else if (typeof p.dx === "number" && typeof p.dy === "number") {
+            rendererRef.current?.lookAt(p.dx, p.dy);
+            gazeIdle.current.moved(Date.now());
+          }
+        }),
         await on<AppSettings>("settings-changed", (s) => {
           const prev = settingsRef.current;
           settingsRef.current = s;
@@ -419,7 +449,15 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       unlisten.forEach((u) => u());
       rendererRef.current?.destroy();
     };
-  }, [mountRenderer, speak, remember, applyEmotion, showBubble, checkRunningTasks, refreshDisplay]);
+  }, [mountRenderer, speak, remember, applyEmotion, showBubble, checkRunningTasks, refreshDisplay, lookAtWindowPoint, gazeLabel]);
+
+  // Cursor quiet for a while → ease back to looking straight ahead (the focus controller smooths it).
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      if (gazeIdle.current.shouldCentre(Date.now())) rendererRef.current?.lookAt(0, 0);
+    }, 500);
+    return () => window.clearInterval(t);
+  }, []);
 
   const onMouseMove = (e: React.MouseEvent) => {
     const d = down.current;
@@ -433,11 +471,13 @@ export function PetWindow({ variant = "pet", quiet = false }: { variant?: "pet" 
       void startDragging();
     }
     const rect = e.currentTarget.getBoundingClientRect();
-    rendererRef.current?.lookAt(e.clientX - rect.width / 2, e.clientY - rect.height * 0.38);
+    lookAtWindowPoint(e.clientX, e.clientY);
     // Head pat: rubbing back and forth over the upper part of the pet without pressing.
-    const overHead = e.clientY < rect.height * 0.55 && e.clientY > rect.height * 0.12;
+    // (element-relative: in 桌面模式 the pet is not at the window's top-left)
+    const ly = e.clientY - rect.top;
+    const overHead = ly < rect.height * 0.55 && ly > rect.height * 0.12;
     if (!d && e.buttons === 0 && overHead) {
-      if (patRef.current.feed(e.clientX, Date.now())) {
+      if (patRef.current.feed(e.clientX - rect.left, Date.now())) {
         // a second stroke soon after the first = repeated rubbing
         const now = Date.now();
         touchReact(now - lastPatAt.current < 5000 ? "rub" : "head_pat");
