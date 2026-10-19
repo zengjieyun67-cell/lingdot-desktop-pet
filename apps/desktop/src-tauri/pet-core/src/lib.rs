@@ -9,6 +9,7 @@
 
 pub mod activity;
 pub mod chat;
+pub mod chat_provider;
 pub mod db;
 pub mod engine;
 pub mod geom;
