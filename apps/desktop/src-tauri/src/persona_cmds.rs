@@ -1,14 +1,20 @@
 //! 小喵: long-term memory commands + optional LLM chat.
 //!
 //! - Memory lives in SQLite (`persona_memory`), local only, derived from app usage.
-//! - The chat API key lives ONLY in the OS keychain (macOS Keychain via `keyring`);
-//!   it is read here in Rust and attached to the outgoing request. It is never
-//!   written to SQLite / settings JSON and never sent to the webview.
+//! - Chat works with any OpenAI-compatible `/chat/completions` provider (presets in
+//!   `pet_core::chat_provider`). API keys live ONLY in the OS keychain (macOS Keychain /
+//!   Windows Credential Manager via `keyring`), one entry per provider
+//!   (`chat-api-key:<provider>`); they are read here in Rust and attached to the
+//!   outgoing request, never written to SQLite / settings JSON or sent to the webview.
 
 use crate::AppState;
 use pet_core::chat::{
     apply_provider_options, build_request, build_system_prompt, build_test_request, memory_summary, parse_response, validate_endpoint,
     ChatMessage,
+};
+use pet_core::chat_provider::{
+    describe_http_error, describe_net_error, key_required, key_user, migrate_legacy_key, normalize_provider, preset, validate_key, KeyStore,
+    NetError,
 };
 use pet_core::model::now_ms;
 use pet_core::persona::{apply_interaction, set_today_mood as set_mood, PersonaMemory};
@@ -19,7 +25,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 type CmdResult<T> = Result<T, String>;
 
 const KEYRING_SERVICE: &str = "com.desktoppet.app";
-const KEYRING_USER: &str = "chat-api-key";
 pub const DEFAULT_PERSONA: &str = include_str!("../../../../persona/xiaomiao.md");
 
 fn e<E: std::fmt::Display>(err: E) -> String {
@@ -102,30 +107,76 @@ pub fn get_persona_prompt_path(app: AppHandle) -> CmdResult<String> {
 
 // ------------------------------------------------------------------ API key
 
-fn entry() -> CmdResult<keyring::Entry> {
-    keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(|err| format!("无法访问钥匙串：{err}"))
-}
+/// The OS keychain, one account per provider (see `chat_provider::key_user`).
+struct Keychain;
 
-#[tauri::command]
-pub fn set_chat_api_key(key: String) -> CmdResult<()> {
-    let key = key.trim();
-    if key.is_empty() || key.len() > 512 || key.chars().any(|c| c.is_control() || c.is_whitespace()) {
-        return Err("API Key 格式不正确".into());
+impl KeyStore for Keychain {
+    fn get(&self, user: &str) -> Option<String> {
+        keyring::Entry::new(KEYRING_SERVICE, user).ok()?.get_password().ok().filter(|k| !k.is_empty())
     }
-    entry()?.set_password(key).map_err(|err| format!("保存到钥匙串失败：{err}"))
-}
-
-#[tauri::command]
-pub fn clear_chat_api_key() -> CmdResult<()> {
-    match entry()?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(err) => Err(format!("删除失败：{err}")),
+    fn set(&self, user: &str, secret: &str) -> Result<(), String> {
+        keyring::Entry::new(KEYRING_SERVICE, user)
+            .map_err(|err| format!("无法访问钥匙串：{err}"))?
+            .set_password(secret)
+            .map_err(|err| format!("保存到钥匙串失败：{err}"))
+    }
+    fn delete(&self, user: &str) -> Result<(), String> {
+        match keyring::Entry::new(KEYRING_SERVICE, user).map_err(|err| format!("无法访问钥匙串：{err}"))?.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(err) => Err(format!("删除失败：{err}")),
+        }
     }
 }
 
+fn current_provider(app: &AppHandle) -> String {
+    app.state::<AppState>().engine.db().get_settings().map(|s| s.chat_provider).unwrap_or_else(|_| "deepseek".into())
+}
+
+/// Provider named by the UI, or the configured one.
+fn provider_or_current(app: &AppHandle, provider: Option<String>) -> String {
+    match provider {
+        Some(p) if !p.trim().is_empty() => normalize_provider(&p).to_string(),
+        _ => current_provider(app),
+    }
+}
+
+/// Move a pre-build-13 single key into the configured provider's slot (idempotent).
+pub fn migrate_chat_key(app: &AppHandle) {
+    if let Err(err) = migrate_legacy_key(&Keychain, &current_provider(app)) {
+        eprintln!("chat key migration failed: {err}");
+    }
+}
+
+fn provider_label(provider: &str) -> &'static str {
+    preset(provider).map(|p| p.label).unwrap_or("当前服务商")
+}
+
 #[tauri::command]
-pub fn has_chat_api_key() -> bool {
-    entry().ok().and_then(|en| en.get_password().ok()).is_some()
+pub fn set_chat_api_key(app: AppHandle, key: String, provider: Option<String>) -> CmdResult<()> {
+    migrate_chat_key(&app);
+    let key = validate_key(&key)?;
+    Keychain.set(&key_user(&provider_or_current(&app, provider)), key)
+}
+
+#[tauri::command]
+pub fn clear_chat_api_key(app: AppHandle, provider: Option<String>) -> CmdResult<()> {
+    migrate_chat_key(&app);
+    Keychain.delete(&key_user(&provider_or_current(&app, provider)))
+}
+
+#[tauri::command]
+pub fn has_chat_api_key(app: AppHandle, provider: Option<String>) -> bool {
+    migrate_chat_key(&app);
+    Keychain.get(&key_user(&provider_or_current(&app, provider))).is_some()
+}
+
+/// Key for `provider`, `None` when the endpoint needs none (Ollama / localhost) and none is saved.
+fn key_for(provider: &str, endpoint: &str) -> CmdResult<Option<String>> {
+    match Keychain.get(&key_user(provider)) {
+        Some(k) => Ok(Some(k)),
+        None if !key_required(provider, endpoint) => Ok(None),
+        None => Err(format!("还没有保存 {} 的 API Key：请到 设置 → 聊天 粘贴后保存", provider_label(provider))),
+    }
 }
 
 // --------------------------------------------------------------------- chat
@@ -141,10 +192,9 @@ pub fn chat_ready(app: &AppHandle) -> CmdResult<()> {
     if !enabled {
         return Err("语音对话要用到聊天：请先在 设置 → 聊天 中开启并保存 API Key".into());
     }
-    if !has_chat_api_key() {
-        return Err("还没有保存 API Key：请到 设置 → 聊天 粘贴 DeepSeek 的 Key".into());
-    }
-    Ok(())
+    migrate_chat_key(app);
+    let s = app.state::<AppState>().engine.db().get_settings().map_err(e)?;
+    key_for(&s.chat_provider, &s.chat_endpoint).map(|_| ())
 }
 
 /// One reply from 小喵 for `history` (persona prompt + memory summary), used by the chat
@@ -170,42 +220,50 @@ pub async fn chat_reply(app: &AppHandle, history: Vec<ChatMessage>) -> CmdResult
     });
     let system = build_system_prompt(&template, &settings.pet_name, &settings.user_title, summary.as_deref());
     let body = apply_provider_options(build_request(&settings.chat_model, &system, &history)?, &url);
-    let key = stored_key()?;
-    post_chat(url, key, body, 60).await
+    migrate_chat_key(app);
+    let key = key_for(&settings.chat_provider, &settings.chat_endpoint)?;
+    post_chat(url, key, body, settings.chat_model.clone(), 60).await
 }
 
-fn stored_key() -> CmdResult<String> {
-    entry()?
-        .get_password()
-        .map_err(|_| "请先在设置中保存 API Key（保存在系统钥匙串中）".to_string())
+fn net_error(err: &ureq::Transport) -> NetError {
+    let text = err.to_string();
+    match err.kind() {
+        ureq::ErrorKind::Dns => NetError::Dns,
+        ureq::ErrorKind::ConnectionFailed if text.to_lowercase().contains("timed out") => NetError::Timeout,
+        ureq::ErrorKind::ConnectionFailed => NetError::Refused,
+        ureq::ErrorKind::Io if text.to_lowercase().contains("timed out") || text.contains("timeout") => NetError::Timeout,
+        _ => NetError::Other(text),
+    }
 }
 
 /// POST an OpenAI-compatible chat request from Rust (the key never reaches the webview).
-async fn post_chat(url: String, key: String, body: serde_json::Value, timeout_secs: u64) -> CmdResult<String> {
+/// `key = None` sends no Authorization header (local servers such as Ollama).
+async fn post_chat(url: String, key: Option<String>, body: serde_json::Value, model: String, timeout_secs: u64) -> CmdResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(timeout_secs)).build();
-        let resp = agent
-            .post(&url)
-            .set("Authorization", &format!("Bearer {key}"))
-            .set("Content-Type", "application/json")
-            .send_json(body);
-        let json: serde_json::Value = match resp {
-            Ok(r) => r.into_json().map_err(|_| "接口返回的不是 JSON".to_string())?,
+        let mut req = agent.post(&url).set("Content-Type", "application/json");
+        if let Some(k) = key.as_deref() {
+            req = req.set("Authorization", &format!("Bearer {k}"));
+        }
+        if url.contains("openrouter.ai") {
+            // optional attribution headers documented by OpenRouter
+            req = req.set("HTTP-Referer", "https://github.com/zengjieyun67-cell/lingdot-desktop-pet").set("X-Title", "lingdot");
+        }
+        let json: serde_json::Value = match req.send_json(body) {
+            Ok(r) => r
+                .into_json()
+                .map_err(|_| "接口返回的不是 JSON：Base URL 可能不对（通常以 /v1 结尾）".to_string())?,
             Err(ureq::Error::Status(code, r)) => {
                 let v: serde_json::Value = r.into_json().unwrap_or_default();
-                let hint = match code {
-                    401 => "（API Key 无效或已失效）",
-                    402 => "（账户余额不足）",
-                    404 => "（接口地址或模型名不对）",
-                    429 => "（请求太频繁或额度用完）",
-                    _ => "",
-                };
-                return Err(match parse_response(&v).err() {
-                    Some(msg) if msg != "接口返回格式无法识别" => format!("HTTP {code}{hint}：{msg}"),
-                    _ => format!("接口返回 HTTP {code}{hint}"),
-                });
+                let api_msg = v
+                    .pointer("/error/message")
+                    .and_then(|m| m.as_str())
+                    .or_else(|| v.get("message").and_then(|m| m.as_str()))
+                    .or_else(|| v.get("error").and_then(|m| m.as_str()))
+                    .map(str::to_string);
+                return Err(describe_http_error(code, api_msg.as_deref(), &model));
             }
-            Err(err) => return Err(format!("网络错误：{err}")),
+            Err(ureq::Error::Transport(t)) => return Err(describe_net_error(&net_error(&t), &url)),
         };
         parse_response(&json)
     })
@@ -213,14 +271,16 @@ async fn post_chat(url: String, key: String, body: serde_json::Value, timeout_se
     .map_err(e)?
 }
 
-/// 「测试连接」: tiny request with the endpoint/model currently typed in the form
-/// (not necessarily saved yet) and the key from the keychain.
+/// 「测试连接」: tiny request with the provider/endpoint/model currently in the form
+/// (not necessarily saved yet) and that provider's key from the keychain.
 #[tauri::command]
-pub async fn chat_test(endpoint: String, model: String) -> CmdResult<String> {
+pub async fn chat_test(app: AppHandle, endpoint: String, model: String, provider: Option<String>) -> CmdResult<String> {
+    migrate_chat_key(&app);
+    let provider = provider_or_current(&app, provider);
     let url = validate_endpoint(&endpoint)?;
     let body = apply_provider_options(build_test_request(&model)?, &url);
-    let key = stored_key()?;
-    let reply = post_chat(url.clone(), key, body, 20).await?;
+    let key = key_for(&provider, &endpoint)?;
+    let reply = post_chat(url.clone(), key, body, model.trim().to_string(), 20).await?;
     let preview: String = reply.chars().take(30).collect();
-    Ok(format!("连接成功（{url}）：{preview}"))
+    Ok(format!("连接成功（{url}，模型 {}）：{preview}", model.trim()))
 }
