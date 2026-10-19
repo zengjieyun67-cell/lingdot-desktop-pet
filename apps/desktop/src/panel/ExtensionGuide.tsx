@@ -93,7 +93,7 @@ export function ExtensionGuide() {
             <Button small variant="ghost" onClick={() => void copy("chrome://extensions", "url")} style={{ height: 22, padding: "0 8px", marginLeft: 4 }}>
               {copied === "url" ? "已复制 ✓" : "复制"}
             </Button>
-            <br />→ 右上角开启 <b>开发者模式</b> → 点 <b>加载已解压的扩展程序</b>，选「桌面/lingdot-desktop-pet/浏览器扩展」
+            <br />→ 右上角开启 <b>开发者模式</b> → 点 <b>加载已解压的扩展程序</b>，选解压好的扩展文件夹（从 GitHub Releases 下载 <b>browser-extension.zip</b> 解压，文件夹里有 manifest.json）
           </div>
         </li>
         <li className={s.step}>
