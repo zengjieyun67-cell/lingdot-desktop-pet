@@ -7,7 +7,7 @@
 **住在你桌面上的傲娇猫娘：帮你盯 AI 任务、陪你听歌、陪你聊天。**<br/>
 **A tsundere catgirl that lives on your desktop: she watches your AI tasks, listens to music with you, and talks back.**
 
-[![Release](https://img.shields.io/github/v/release/zengjieyun67-cell/lingdot-desktop-pet?include_prereleases&label=download&color=ff2d55)](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-10)
+[![Release](https://img.shields.io/github/v/release/zengjieyun67-cell/lingdot-desktop-pet?include_prereleases&label=download&color=ff2d55)](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-12)
 ![macOS](https://img.shields.io/badge/macOS-12%2B-black?logo=apple)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
@@ -67,16 +67,16 @@
 
 ## 📦 下载 · Download
 
-最新版本 / Latest: **[build-10](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-10)**
+最新版本 / Latest: **[build-12](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-12)**
 
 | 系统 · Platform | 文件 · File | 说明 · Notes |
 |---|---|---|
-| 🍎 macOS · Apple Silicon (M1–M4) | [lingdot-desktop-pet_0.1.0_aarch64.dmg](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/lingdot-desktop-pet_0.1.0_aarch64.dmg) | 推荐 · Recommended |
-| 🍎 macOS · Intel | [lingdot-desktop-pet_0.1.0_x64.dmg](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/lingdot-desktop-pet_0.1.0_x64.dmg) | |
-| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_0.1.0_x64-setup.exe](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/lingdot-desktop-pet_0.1.0_x64-setup.exe) | 安装版，推荐 · Installer, recommended |
-| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_0.1.0_x64_en-US.msi](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/lingdot-desktop-pet_0.1.0_x64_en-US.msi) | MSI 安装包 · MSI package |
-| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_x64-portable.exe](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/lingdot-desktop-pet_x64-portable.exe) | 免安装，双击即用 · Portable, no install |
-| 🧩 Chrome / Edge / Arc 扩展 | [browser-extension.zip](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-10/browser-extension.zip) | AI 任务提醒（可选）· AI-task alerts (optional) |
+| 🍎 macOS · Apple Silicon (M1–M4) | [lingdot-desktop-pet_0.1.0_aarch64.dmg](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/lingdot-desktop-pet_0.1.0_aarch64.dmg) | 推荐 · Recommended |
+| 🍎 macOS · Intel | [lingdot-desktop-pet_0.1.0_x64.dmg](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/lingdot-desktop-pet_0.1.0_x64.dmg) | |
+| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_0.1.0_x64-setup.exe](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/lingdot-desktop-pet_0.1.0_x64-setup.exe) | 安装版，推荐 · Installer, recommended |
+| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_0.1.0_x64_en-US.msi](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/lingdot-desktop-pet_0.1.0_x64_en-US.msi) | MSI 安装包 · MSI package |
+| 🪟 Windows 10 / 11 (x64) | [lingdot-desktop-pet_x64-portable.exe](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/lingdot-desktop-pet_x64-portable.exe) | 免安装，双击即用 · Portable, no install |
+| 🧩 Chrome / Edge / Arc 扩展 | [browser-extension.zip](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/download/build-12/browser-extension.zip) | AI 任务提醒（可选）· AI-task alerts (optional) |
 
 ## 🚀 快速开始
 
@@ -127,6 +127,12 @@ pnpm build:desktop                                   # 桌面应用 → src-taur
 
 完整说明（目录结构、状态机、性格与记忆、隐私设计、已知限制）见 **[docs/GUIDE.md](docs/GUIDE.md)**。
 
+## 📝 更新日志
+
+- **build-12**：桌面模式下猫娘视线跟随全局鼠标（支持 Retina、多显示器，闲置自动回正）；修复首次进入桌面模式只占半屏；屏保窗口尺寸同步修复。
+- **build-11**：Mac 自动导入 `.app` 内或旁边的 `live2d-pack` 模型。
+- **build-10**：桌面模式切换提速；修复 Windows 模型路径与长路径；统一玻璃面板；修复拖动吞掉点击。
+
 ## 🗺️ 路线图
 
 - [x] 桌宠模式 / 桌面模式 / 屏保，统一玻璃界面
@@ -175,7 +181,7 @@ pnpm build:desktop                                   # 桌面应用 → src-taur
 
 ### Download
 
-Get the latest build from **[Releases › build-10](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-10)** (see the [download table](#-下载--download) above): `.dmg` for Apple Silicon or Intel Macs, `-setup.exe` / `.msi` / portable `.exe` for Windows x64, and `browser-extension.zip` for AI-task alerts.
+Get the latest build from **[Releases › build-12](https://github.com/zengjieyun67-cell/lingdot-desktop-pet/releases/tag/build-12)** (see the [download table](#-下载--download) above): `.dmg` for Apple Silicon or Intel Macs, `-setup.exe` / `.msi` / portable `.exe` for Windows x64, and `browser-extension.zip` for AI-task alerts.
 
 ### Quick start
 
@@ -205,6 +211,12 @@ pnpm build:desktop
 ```
 
 Requirements: Rust (rustup), Node.js ≥ 20, pnpm ≥ 9, and Xcode Command Line Tools on macOS. To preview the UI without Rust, run `pnpm --filter @desktop-pet/desktop dev` and open `http://localhost:1420/?skipFirstRun=1#/panel`. You can also fork the repo and run the *Build macOS DMG + Windows installer* workflow in Actions. Full developer docs (in Chinese): [docs/GUIDE.md](docs/GUIDE.md).
+
+### Changelog
+
+- **build-12**: in desktop mode her gaze follows the global cursor (Retina and multi-monitor aware, eases back to centre when idle); fixed desktop mode filling only half the screen on first open; same sizing fix for the screensaver.
+- **build-11**: Mac auto-imports a `live2d-pack` model from inside or next to the `.app`.
+- **build-10**: faster desktop-mode switching; fixed Windows model paths and long paths; unified glass panels; dragging no longer swallows clicks.
 
 ### Roadmap
 
