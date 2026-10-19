@@ -1,6 +1,7 @@
 //! Pet + panel window management.
 
 use crate::AppState;
+use pet_core::geom;
 use pet_core::model::{AppSettings, PetPosition};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewWindow};
@@ -209,28 +210,59 @@ pub fn reset_panel_position(app: &AppHandle) {
     }
 }
 
-/// Feed the pet webview with the global cursor position relative to the pet's
-/// centre (logical px) so eyes/head can follow the cursor anywhere on screen.
+/// Windows that show 小喵 and want the global cursor: the floating pet (桌宠模式), the
+/// 桌面模式 scene and the 屏保 scene. The scene windows sit at desktop level behind other
+/// apps and almost never get `mousemove`, so without this feed her head stayed on a stale
+/// target in 桌面模式.
+const GAZE_WINDOWS: [&str; 3] = ["pet", DESKTOP_LABEL, SCREENSAVER_LABEL];
+
+/// Feed every visible 小喵 window with the global cursor position (~30 fps, only on change,
+/// paused while nothing is visible). Payload: `window` (target label — JS `listen` hears
+/// events for every window, so pages filter on it), `x`/`y` = cursor in the window's own
+/// logical px (like `clientX/clientY`, may be outside the window / on another monitor),
+/// and for the pet window the legacy `dx`/`dy` offset from its head.
+///
+/// Also the 桌面模式 watchdog: every ~1.5 s it checks the scene still covers its monitor
+/// (resolution / scale / monitor changes, or a first placement that came out wrong).
 pub fn spawn_cursor_feed(app: AppHandle) {
     std::thread::spawn(move || {
-        let mut last = (f64::NAN, f64::NAN);
+        let mut last: [(f64, f64); 3] = [(f64::NAN, f64::NAN); 3];
+        let mut ticks: u32 = 0;
         loop {
-            std::thread::sleep(Duration::from_millis(60));
-            let Some(w) = app.get_webview_window("pet") else { continue };
-            if !w.is_visible().unwrap_or(false) {
-                continue;
+            std::thread::sleep(Duration::from_millis(33));
+            ticks = ticks.wrapping_add(1);
+            let mut any = false;
+            for (i, label) in GAZE_WINDOWS.iter().enumerate() {
+                let Some(w) = app.get_webview_window(label) else { continue };
+                if !w.is_visible().unwrap_or(false) {
+                    last[i] = (f64::NAN, f64::NAN);
+                    continue;
+                }
+                any = true;
+                if *label == DESKTOP_LABEL && ticks % 45 == 0 {
+                    ensure_desktop_frame(&app, &w);
+                }
+                let (Ok(c), Ok(pos), Ok(sf)) = (w.cursor_position(), w.inner_position(), w.scale_factor()) else { continue };
+                let (x, y) = geom::window_local_cursor((c.x, c.y), (pos.x, pos.y), sf);
+                let (x, y) = (x.round(), y.round());
+                let prev = last[i];
+                if !prev.0.is_nan() && (x - prev.0).abs() < 2.0 && (y - prev.1).abs() < 2.0 {
+                    continue;
+                }
+                last[i] = (x, y);
+                let mut payload = serde_json::json!({ "window": label, "x": x, "y": y });
+                if *label == "pet" {
+                    if let (Ok(op), Ok(os)) = (w.outer_position(), w.outer_size()) {
+                        let (dx, dy) = geom::pet_head_offset((c.x, c.y), (op.x, op.y), (os.width, os.height), sf);
+                        payload["dx"] = dx.into();
+                        payload["dy"] = dy.into();
+                    }
+                }
+                let _ = app.emit_to(*label, "pet-cursor", payload);
             }
-            let (Ok(c), Ok(pos), Ok(size), Ok(sf)) = (w.cursor_position(), w.outer_position(), w.outer_size(), w.scale_factor())
-            else {
-                continue;
-            };
-            let cx = pos.x as f64 + size.width as f64 / 2.0;
-            let cy = pos.y as f64 + size.height as f64 * 0.38; // roughly the head
-            let dx = ((c.x - cx) / sf).round();
-            let dy = ((c.y - cy) / sf).round();
-            if (dx - last.0).abs() >= 2.0 || (dy - last.1).abs() >= 2.0 || last.0.is_nan() {
-                last = (dx, dy);
-                let _ = app.emit_to("pet", "pet-cursor", serde_json::json!({ "dx": dx, "dy": dy }));
+            if !any {
+                // nothing on screen: idle slower
+                std::thread::sleep(Duration::from_millis(250));
             }
         }
     });
@@ -296,8 +328,12 @@ pub fn spawn_window_job(f: impl FnOnce() + Send + 'static) {
 }
 
 fn build_desktop(app: &AppHandle) -> Option<WebviewWindow> {
+    // Created at its final (logical) frame so the page never lays out at the 800×600 default.
+    let t = desktop_target(app);
     tauri::WebviewWindowBuilder::new(app, DESKTOP_LABEL, tauri::WebviewUrl::App("index.html#/desktop".into()))
         .title("小喵的桌面")
+        .position(t.x, t.y)
+        .inner_size(t.w, t.h)
         .decorations(false)
         .resizable(false)
         .maximizable(false)
@@ -312,19 +348,56 @@ fn build_desktop(app: &AppHandle) -> Option<WebviewWindow> {
         .ok()
 }
 
-fn place_and_show_desktop(app: &AppHandle, win: &WebviewWindow, s: &AppSettings) {
-    // The screen the pet is on (or the primary one).
+/// The monitor the 桌面模式 scene belongs on: the pet's screen, else the one under the
+/// cursor, else the primary one.
+fn desktop_monitor(app: &AppHandle) -> Option<tauri::Monitor> {
     let anchor = pet(app);
-    let monitor = anchor
+    anchor
         .as_ref()
         .and_then(|w| w.current_monitor().ok().flatten())
-        .or_else(|| anchor.as_ref().and_then(|w| w.primary_monitor().ok().flatten()));
-    let (pos, size) = match &monitor {
-        Some(m) => (*m.position(), *m.size()),
-        None => (PhysicalPosition::new(0, 0), tauri::PhysicalSize::new(1440, 900)),
-    };
-    let _ = win.set_position(pos);
-    let _ = win.set_size(size);
+        .or_else(|| app.cursor_position().ok().and_then(|c| app.monitor_from_point(c.x, c.y).ok().flatten()))
+        .or_else(|| app.primary_monitor().ok().flatten())
+}
+
+/// Target frame of the scene in logical points (see `geom::monitor_logical_frame`).
+fn desktop_target(app: &AppHandle) -> geom::LogicalRect {
+    match desktop_monitor(app) {
+        Some(m) => geom::monitor_logical_frame((m.position().x, m.position().y), (m.size().width, m.size().height), m.scale_factor()),
+        None => geom::LogicalRect { x: 0.0, y: 0.0, w: 1440.0, h: 900.0 },
+    }
+}
+
+/// Make the scene cover its whole monitor. Uses logical units so the window's own
+/// (possibly stale) scale factor can't halve it; on macOS the NSWindow frame is then
+/// snapped to the NSScreen frame on the main thread.
+fn fit_desktop(app: &AppHandle, win: &WebviewWindow) {
+    let t = desktop_target(app);
+    let _ = win.set_position(tauri::LogicalPosition::new(t.x, t.y));
+    let _ = win.set_size(LogicalSize::new(t.w, t.h));
+    #[cfg(target_os = "macos")]
+    mac_fit_to_screen(app, win);
+}
+
+/// Re-fit only if the scene no longer matches its monitor (cheap; called by the watchdog).
+/// Scale factor / monitor changed (window event): re-fit if the scene is up.
+pub fn refit_desktop(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(DESKTOP_LABEL) {
+        if w.is_visible().unwrap_or(false) {
+            fit_desktop(app, &w);
+        }
+    }
+}
+
+fn ensure_desktop_frame(app: &AppHandle, win: &WebviewWindow) {
+    let (Ok(pos), Ok(size), Ok(sf)) = (win.inner_position(), win.inner_size(), win.scale_factor()) else { return };
+    let actual = geom::window_logical_frame((pos.x, pos.y), (size.width, size.height), sf);
+    if geom::frame_mismatch(actual, desktop_target(app), 2.0) {
+        fit_desktop(app, win);
+    }
+}
+
+fn place_and_show_desktop(app: &AppHandle, win: &WebviewWindow, s: &AppSettings) {
+    fit_desktop(app, win);
     set_desktop_level(app, win, s.desktop_interactive);
     if s.pet_visible {
         let _ = win.show();
@@ -332,6 +405,110 @@ fn place_and_show_desktop(app: &AppHandle, win: &WebviewWindow, s: &AppSettings)
     if let Some(w) = pet(app) {
         let _ = w.hide();
     }
+    // A window that was created hidden can report a stale scale factor / screen until it is
+    // on screen: re-check shortly after showing (the watchdog in the cursor feed keeps going).
+    let app2 = app.clone();
+    spawn_window_job(move || {
+        for ms in [120u64, 500, 1500] {
+            std::thread::sleep(Duration::from_millis(ms));
+            let Some(w) = app2.get_webview_window(DESKTOP_LABEL) else { return };
+            if !w.is_visible().unwrap_or(false) {
+                return;
+            }
+            ensure_desktop_frame(&app2, &w);
+            #[cfg(target_os = "macos")]
+            mac_fit_to_screen(&app2, &w);
+        }
+    });
+}
+
+/// macOS: snap the scene's NSWindow frame to the frame of the screen the pet is on (else the
+/// screen under the mouse, else the main screen). Cocoa frames are in points, so there is no
+/// physical/logical conversion to get wrong. No-op when already there.
+#[cfg(target_os = "macos")]
+fn mac_fit_to_screen(app: &AppHandle, win: &WebviewWindow) {
+    use objc2::encode::{Encode, Encoding};
+    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::msg_send;
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Pt {
+        x: f64,
+        y: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Sz {
+        w: f64,
+        h: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Rect {
+        o: Pt,
+        s: Sz,
+    }
+    unsafe impl Encode for Pt {
+        const ENCODING: Encoding = Encoding::Struct("CGPoint", &[Encoding::Double, Encoding::Double]);
+    }
+    unsafe impl Encode for Sz {
+        const ENCODING: Encoding = Encoding::Struct("CGSize", &[Encoding::Double, Encoding::Double]);
+    }
+    unsafe impl Encode for Rect {
+        const ENCODING: Encoding = Encoding::Struct("CGRect", &[Pt::ENCODING, Sz::ENCODING]);
+    }
+    let Ok(raw) = win.ns_window() else { return };
+    let addr = raw as usize;
+    let anchor = pet(app).and_then(|p| p.ns_window().ok()).map(|p| p as usize).unwrap_or(0);
+    let _ = app.run_on_main_thread(move || {
+        let ptr = addr as *mut AnyObject;
+        if ptr.is_null() {
+            return;
+        }
+        // SAFETY: live NSWindow / NSScreen objects, used on the main thread only.
+        unsafe {
+            let obj: &AnyObject = &*ptr;
+            let mut screen: *mut AnyObject = std::ptr::null_mut();
+            if anchor != 0 {
+                let a: &AnyObject = &*(anchor as *const AnyObject);
+                screen = msg_send![a, screen];
+            }
+            let (Some(ns_screen), Some(ns_event)) = (AnyClass::get(c"NSScreen"), AnyClass::get(c"NSEvent")) else { return };
+            if screen.is_null() {
+                let m: Pt = msg_send![ns_event, mouseLocation];
+                let screens: *mut AnyObject = msg_send![ns_screen, screens];
+                if !screens.is_null() {
+                    let n: usize = msg_send![&*screens, count];
+                    for i in 0..n {
+                        let sc: *mut AnyObject = msg_send![&*screens, objectAtIndex: i];
+                        if sc.is_null() {
+                            continue;
+                        }
+                        let f: Rect = msg_send![&*sc, frame];
+                        if m.x >= f.o.x && m.x < f.o.x + f.s.w && m.y >= f.o.y && m.y < f.o.y + f.s.h {
+                            screen = sc;
+                            break;
+                        }
+                    }
+                }
+            }
+            if screen.is_null() {
+                screen = msg_send![ns_screen, mainScreen];
+            }
+            if screen.is_null() {
+                return;
+            }
+            let f: Rect = msg_send![&*screen, frame];
+            let cur: Rect = msg_send![obj, frame];
+            let off = (cur.o.x - f.o.x).abs() > 1.0
+                || (cur.o.y - f.o.y).abs() > 1.0
+                || (cur.s.w - f.s.w).abs() > 1.0
+                || (cur.s.h - f.s.h).abs() > 1.0;
+            if off {
+                let _: () = msg_send![obj, setFrame: f, display: true];
+            }
+        }
+    });
 }
 
 /// macOS: put the window just above the wallpaper (kCGDesktopWindowLevel + 1), or just
@@ -393,17 +570,19 @@ pub fn show_screensaver(app: &AppHandle) {
     let monitor = anchor
         .as_ref()
         .and_then(|w| w.current_monitor().ok().flatten())
-        .or_else(|| anchor.as_ref().and_then(|w| w.primary_monitor().ok().flatten()));
-    let (pos, size) = match &monitor {
-        Some(m) => (*m.position(), *m.size()),
-        None => (PhysicalPosition::new(0, 0), tauri::PhysicalSize::new(1440, 900)),
+        .or_else(|| app.primary_monitor().ok().flatten());
+    // logical frame (same half-screen pitfall as 桌面模式: never hand physical px to a fresh window)
+    let t = match &monitor {
+        Some(m) => geom::monitor_logical_frame((m.position().x, m.position().y), (m.size().width, m.size().height), m.scale_factor()),
+        None => geom::LogicalRect { x: 0.0, y: 0.0, w: 1440.0, h: 900.0 },
     };
+    let (pos, size) = (tauri::LogicalPosition::new(t.x, t.y), LogicalSize::new(t.w, t.h));
     hide_panel(app);
     let app = app.clone();
     spawn_window_job(move || build_screensaver(&app, pos, size));
 }
 
-fn build_screensaver(app: &AppHandle, pos: PhysicalPosition<i32>, size: tauri::PhysicalSize<u32>) {
+fn build_screensaver(app: &AppHandle, pos: tauri::LogicalPosition<f64>, size: LogicalSize<f64>) {
     if app.get_webview_window(SCREENSAVER_LABEL).is_some() {
         return;
     }
