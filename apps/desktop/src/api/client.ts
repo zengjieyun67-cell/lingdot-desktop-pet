@@ -149,12 +149,13 @@ export const api = {
   resetPersonaMemory: () => invoke<PersonaMemory>("reset_persona_memory"),
   getPersonaPromptPath: () => invoke<string>("get_persona_prompt_path"),
   // chat (API key goes straight to the OS keychain; it is never returned to the UI)
-  setChatApiKey: (key: string) => invoke<void>("set_chat_api_key", { key }),
-  clearChatApiKey: () => invoke<void>("clear_chat_api_key"),
-  hasChatApiKey: () => invoke<boolean>("has_chat_api_key"),
+  // keys are per provider; omitting `provider` means the configured one
+  setChatApiKey: (key: string, provider?: string) => invoke<void>("set_chat_api_key", { key, provider }),
+  clearChatApiKey: (provider?: string) => invoke<void>("clear_chat_api_key", { provider }),
+  hasChatApiKey: (provider?: string) => invoke<boolean>("has_chat_api_key", { provider }),
   chatSend: (history: ChatMessage[]) => invoke<string>("chat_send", { history }),
   /** 测试连接 with the URL/model currently in the form and the key from the keychain. */
-  chatTest: (endpoint: string, model: string) => invoke<string>("chat_test", { endpoint, model }),
+  chatTest: (endpoint: string, model: string, provider?: string) => invoke<string>("chat_test", { endpoint, model, provider }),
 
   // phase 2: voice (macOS native STT + `say`; see lib/voice.ts for the browser fallback)
   voiceStatus: () => invoke<VoiceStatus>("voice_status"),
