@@ -35,7 +35,7 @@
 | 🎭 **导入 Live2D** | 把你自己的 `.model3.json` 模型和 Cubism SDK 放进「下载」，打开应用自动识别导入；情绪和任务状态映射到模型的表情与动作。 |
 | 🔔 **AI 任务提醒** | 配套 Chrome / Edge 扩展：ChatGPT 回答**生成完 / 出错 / 需要你操作**时，小喵会跳出来提醒你。只在你授权的网站运行，只上报状态信号，不读对话内容。 |
 | 🎙️ **语音聊天（Mac）** | 长按她说话，或开启「实时对话」像打电话一样聊。用 macOS 自带语音识别和系统语音，免费。 |
-| 💬 **AI 聊天** | 内置 DeepSeek 预设，粘贴 API Key 就能聊；也支持任意 OpenAI 兼容接口。Key 只存在系统钥匙串 / 凭据管理器里。 |
+| 💬 **AI 聊天** | 支持任意 OpenAI 兼容服务：DeepSeek、OpenAI、Kimi、通义千问、智谱 GLM、硅基流动、OpenRouter、Gemini、Claude、本机 Ollama 一键预设，也可自定义 Base URL。Key 按服务商分别存在系统钥匙串 / 凭据管理器里。 |
 | 📝 **便签** | 玻璃质感便签：清单、置顶、提醒、浮动到桌面，`⌘⇧N` / `Ctrl+Shift+N` 随时新建。 |
 | 🎧 **听歌 & 小情绪** | 检测 QQ音乐 / Apple 音乐 / Spotify / 网易云播放，戴上耳机跟着摇头；深夜催你睡觉，饭点提醒吃饭，被冷落会闹别扭，摸头会害羞。 |
 | 🪟 **统一的玻璃界面** | 一套苹果风磨砂玻璃设计语言，面板、便签、快捷圆盘、桌面小组件风格一致，浅色 / 深色都好看。 |
@@ -136,7 +136,7 @@ pnpm build:desktop                                   # 桌面应用 → src-taur
 ## 🗺️ 路线图
 
 - [x] 桌宠模式 / 桌面模式 / 屏保，统一玻璃界面
-- [x] Live2D 自动导入，ChatGPT 任务提醒，DeepSeek 聊天
+- [x] Live2D 自动导入，ChatGPT 任务提醒，AI 聊天（任意 OpenAI 兼容服务）
 - [x] Mac 语音聊天、听歌检测；Windows 安装版 + 免安装版
 - [ ] 更多网站适配：哔哩哔哩、CapCut 等
 - [ ] Windows 语音识别与听歌检测
@@ -173,7 +173,7 @@ pnpm build:desktop                                   # 桌面应用 → src-taur
 - 🎭 **Live2D import**: drop your own `.model3.json` model and the Cubism SDK zip into Downloads, and the app finds and imports them. Moods and task states map to your model's expressions and motions.
 - 🔔 **AI-task notifications**: a companion Chrome/Edge extension tells her when a ChatGPT answer is done, has failed or needs your input. It runs only on sites you approve and reports state signals only, never your conversations.
 - 🎙️ **Voice chat (Mac)**: hold the pet to talk, or turn on hands-free real-time mode. It uses macOS's built-in speech recognition and voices, so it's free.
-- 💬 **AI chat**: a DeepSeek preset (just paste a key) or any OpenAI-compatible endpoint. Keys stay in the macOS Keychain or Windows Credential Manager.
+- 💬 **AI chat**: works with any OpenAI-compatible provider: one-click presets for DeepSeek, OpenAI, Kimi, Qwen (DashScope), Zhipu GLM, SiliconFlow, OpenRouter, Gemini, Claude and local Ollama, or a custom base URL. Keys are stored per provider in the macOS Keychain or Windows Credential Manager.
 - 📝 **Notes**: glass sticky notes with checklists, pinning and reminders. You can float them on the desktop, and `⌘⇧N` / `Ctrl+Shift+N` makes a new one from anywhere.
 - 🎧 **Music & moods**: she puts on headphones when QQ Music, Apple Music, Spotify or NetEase is playing. She also nags you to sleep late at night, sulks when ignored and blushes when you pat her head.
 - 🪟 **One glass UI**: a single Apple-style frosted-glass design language across every panel, note, dial and widget, in light and dark.
@@ -221,7 +221,7 @@ Requirements: Rust (rustup), Node.js ≥ 20, pnpm ≥ 9, and Xcode Command Line 
 ### Roadmap
 
 - [x] Pet mode, desktop mode and screensaver with one glass UI
-- [x] Live2D auto-import, ChatGPT task alerts, DeepSeek chat
+- [x] Live2D auto-import, ChatGPT task alerts, AI chat (any OpenAI-compatible provider)
 - [x] Voice chat and music detection on Mac; Windows installer and portable build
 - [ ] More site adapters (Bilibili, CapCut, …)
 - [ ] Speech recognition and music detection on Windows
