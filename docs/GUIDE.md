@@ -10,7 +10,7 @@
 - 内置精心绘制的分层 SVG 猫娘：呼吸、眨眼、耳朵抖动、尾巴摆动、眼睛/头跟随鼠标；任务状态动画（打字 / 开心跳跃 / 竖耳“!”）+ 情绪表情（脸红、鼓脸、半睁眼、耳朵耷拉/竖起/后压）
 - 放入 Live2D Cubism Core 与你的 `.model3.json` 模型后自动切换为 Live2D（情绪/状态映射到模型表情与动作）
 - **性格**：傲娇台词库（离线可用）× 情绪状态机 × 本地长期记忆（好感度、熟悉度、习惯）
-- **可选聊天**：内置 DeepSeek 预设（只需粘贴 API Key），也可用任意 OpenAI 兼容接口；API Key 存在 macOS 钥匙串，只由 Rust 后台发送
+- **可选聊天**：支持任意 OpenAI 兼容服务（内置 DeepSeek、OpenAI、Kimi、通义千问、智谱 GLM、硅基流动、OpenRouter、Gemini、Claude、本机 Ollama 预设，也可自定义）；API Key 按服务商分别存在系统钥匙串 / 凭据管理器，只由 Rust 后台发送
 - Chrome MV3 扩展只在你授权的网站注入脚本，只上报标题、网址和按钮状态信号
 - 本地服务只监听 `127.0.0.1`，Bearer 令牌 + Origin/Host 校验 + 16KB 限制 + 严格 schema
 
@@ -87,18 +87,28 @@ Live2D 的 Core 和模型受版权保护，**本仓库不包含**，需要你自
 
 ### 5. （可选）AI 聊天
 
-设置 → 聊天：打开开关，「服务商」默认就是 **DeepSeek**，接口地址已自动填好：
+设置 → 聊天：打开开关，在「服务商」里选一个预设，**Base URL** 和**模型名**会自动填好（都可以再改）：
 
-```text
-接口地址: https://api.deepseek.com
-模型:     deepseek-flash（快，推荐；也可选 deepseek-v4-pro）
-```
+| 服务商 | Base URL | 默认模型 |
+| --- | --- | --- |
+| DeepSeek（默认） | `https://api.deepseek.com` | `deepseek-flash` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| Moonshot / Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| 通义千问 DashScope | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+| 硅基流动 SiliconFlow | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4o-mini` |
+| Google Gemini（OpenAI 兼容） | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.5-flash` |
+| Anthropic Claude（OpenAI 兼容层） | `https://api.anthropic.com/v1` | `claude-haiku-4-5` |
+| Ollama（本机，无需 Key） | `http://localhost:11434/v1` | `qwen2.5` |
+| 自定义 | 任意 OpenAI 兼容地址 | 自己填 |
 
-1. 到 [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) 创建一个 API Key，粘贴到「API Key」→ 保存。
-2. 点 **测试连接**，看到「连接成功」就可以去「聊天」页和她聊天了；失败会直接显示原因（例如 Key 无效、余额不足）。
-3. 小喵会以 DeepSeek 的**非思考模式**回复（更快）。想用别的服务，把「服务商」切到「自定义 OpenAI 兼容」，自己填接口地址和模型名。
+1. 到对应服务商的控制台创建 API Key（设置里有直达链接），粘贴到「API Key」→ 保存。每个服务商的 Key 分开保存，切换服务商不会丢。Ollama / 本机 localhost 地址可以不填 Key。
+2. 点 **测试连接**，看到「连接成功」就可以去「聊天」页和她聊天了；失败会直接说明原因（Key 无效 401、模型名或地址不对 404、余额不足、网络连不上、本机 Ollama 没启动等）。
+3. Base URL 写到 `/v1`、只写域名、或写完整的 `/chat/completions` 都可以，会自动拼成正确的请求地址。用 DeepSeek 时会以**非思考模式**回复（更快）。
+4. 从旧版本升级：原来的 DeepSeek（或自定义）设置和 Key 会自动迁移，不用重新填。
 
-API Key 只保存在 macOS 钥匙串里，不会写进数据库，也不会上传到别处。
+API Key 只保存在系统钥匙串（macOS 钥匙串 / Windows 凭据管理器）里，不会写进数据库，也不会上传到别处。
 
 ### 6. （可选）语音聊天：和小喵说话
 
@@ -156,7 +166,7 @@ lingdot-desktop-pet/
 │  ├─ desktop/                 Tauri 2 + React + TypeScript + Vite（CSS Modules）
 │  │  ├─ src/pet/              桌宠窗口、PetRenderer 接口、SVG 猫娘、Live2D、persona.ts（性格控制器）
 │  │  ├─ src/panel/            面板：任务 / 网站 / 聊天 / 通知 / 设置（角色 / 小喵 / 聊天 / 扩展 / 通用），扩展安装引导
-│  │  ├─ src/lib/              纯逻辑：petSize.ts（大小钳制）、chatPresets.ts（DeepSeek 预设）
+│  │  ├─ src/lib/              纯逻辑：petSize.ts（大小钳制）、chatPresets.ts（聊天服务商预设）
 │  │  ├─ src/api/              Tauri 命令封装（浏览器预览时使用 localStorage mock）
 │  │  └─ src-tauri/            Rust：窗口、托盘、通知、命令、聊天（ureq）+ 钥匙串（keyring）
 │  │     └─ pet-core/          纯 Rust 库（不依赖 Tauri）：状态机、协议、SQLite、本地服务、记忆、聊天提示词
@@ -211,8 +221,8 @@ lingdot-desktop-pet/
 
 ### 可选聊天（默认关闭）
 
-1. 设置 → 聊天：开启。服务商预设：**DeepSeek**（新安装默认；`https://api.deepseek.com` → POST `https://api.deepseek.com/chat/completions`，模型 `deepseek-flash` / `deepseek-v4-pro`，请求体带 `"thinking": {"type": "disabled"}` 使用非思考模式——该字段只在主机为 `api.deepseek.com` 时发送）或 **自定义 OpenAI 兼容**（例如 `https://api.openai.com/v1`，或本机 `http://localhost:11434/v1`）。地址可写到 `/v1` 或完整的 `/chat/completions`，两种都会正确拼接。「测试连接」用表单里当前的地址/模型发一条极短请求（命令 `chat_test`）。
-2. 输入 API Key → 保存：Key **只存入 macOS 钥匙串**（keyring crate，服务名 `com.desktoppet.app`），不写入数据库/设置，界面也不会再显示它；请求只从 Rust 后台发出。
+1. 设置 → 聊天：开启。所有服务商都走 OpenAI 兼容的 `POST {Base URL}/chat/completions`；预设表在 `apps/desktop/src-tauri/pet-core/src/chat_provider.rs`（前端镜像 `apps/desktop/src/lib/chatPresets.ts`，有测试保证两边一致）：DeepSeek（新安装默认）、OpenAI、Moonshot/Kimi、通义千问 DashScope（compatible-mode）、智谱 GLM、硅基流动、OpenRouter、Gemini（OpenAI 兼容）、Anthropic（OpenAI 兼容层）、Ollama（`http://localhost:11434/v1`）和自定义。Base URL 规则：去掉结尾的 `/` 和 `/chat/completions`；只写域名时补上该服务商的 API 路径（大多数是 `/v1`，DeepSeek 不补，DashScope `/compatible-mode/v1`，智谱 `/api/paas/v4`，OpenRouter `/api/v1`，Gemini `/v1beta/openai`）。只允许 https，本机 localhost 可用 http。DeepSeek 主机会额外发送 `"thinking": {"type": "disabled"}` 使用非思考模式。「测试连接」用表单里当前的服务商/地址/模型发一条极短请求（命令 `chat_test`），错误会按 401 / 403 / 404（模型或地址）/ 429 / 5xx / DNS / 连接被拒（本机服务未启动）/ 超时给出提示。
+2. 输入 API Key → 保存：Key **只存入系统钥匙串**（keyring crate，服务名 `com.desktoppet.app`，每个服务商一条，账户名 `chat-api-key:<服务商>`），不写入数据库/设置，界面也不会再显示它；请求只从 Rust 后台发出。Ollama / localhost 可不设 Key（不发送 Authorization 头）。旧版本的单个 Key（账户名 `chat-api-key`）会在第一次使用时自动迁移到当时选中的服务商下；旧设置（`chatConfigVersion` < 2）同样自动迁移。
 3. 系统提示词 = `persona/xiaomiao.md`（首次运行复制到 `~/Library/Application Support/com.desktoppet.app/persona/xiaomiao.md`，可直接编辑）+ 一段简短的记忆摘要（好感度、熟悉度、心情、习惯；关闭记忆时不发送）。
 4. 聊天记录只保存在本机面板（webview localStorage，最多 40 条），可一键清空。
 
