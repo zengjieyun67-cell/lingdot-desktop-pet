@@ -662,6 +662,33 @@ fn safe_rel(p: &str) -> Option<PathBuf> {
     (!out.as_os_str().is_empty()).then_some(out)
 }
 
+/// Folder name a personal model pack may use inside / beside a macOS `.app` bundle.
+pub const BUNDLE_PACK_DIR: &str = "live2d-pack";
+
+/// macOS: model-pack folders that belong to the running `.app` itself, given its executable
+/// (`…/X.app/Contents/MacOS/<bin>`): `X.app/Contents/Resources/live2d-pack` (a personal build
+/// with the model sealed into the bundle) and a `live2d-pack` folder next to `X.app`. Only
+/// existing folders are returned; public builds have neither. Never scans the folder holding
+/// the app wholesale (that would be /Applications).
+pub fn app_bundle_pack_dirs(exe: &Path) -> Vec<PathBuf> {
+    let mut out = vec![];
+    let Some(macos) = exe.parent() else { return out };
+    let Some(contents) = macos.parent() else { return out };
+    if macos.file_name().map(|n| n != "MacOS").unwrap_or(true) || contents.file_name().map(|n| n != "Contents").unwrap_or(true) {
+        return out;
+    }
+    let inside = contents.join("Resources").join(BUNDLE_PACK_DIR);
+    if inside.is_dir() {
+        out.push(inside);
+    }
+    if let Some(app) = contents.parent().filter(|a| a.extension().map(|e| e.eq_ignore_ascii_case("app")).unwrap_or(false)) {
+        if let Some(beside) = app.parent().map(|d| d.join(BUNDLE_PACK_DIR)).filter(|d| d.is_dir()) {
+            out.push(beside);
+        }
+    }
+    out
+}
+
 /// If `exe` carries an embedded model pack, extract it into `dest` (once; a stamp file skips
 /// re-extraction on later launches) and return `dest`. `Ok(None)` = no pack (public builds).
 pub fn unpack_embedded(exe: &Path, dest: &Path) -> Result<Option<PathBuf>, String> {
@@ -878,6 +905,36 @@ mod tests {
         make_model(&h.join("Downloads/other"), "other"); // newer elsewhere, must lose
         let mut roots = ScanRoots::standard(h, &app);
         roots.preferred.push(exe_dir.clone());
+        let out = scan_and_import(&roots, None, false);
+        assert!(out.complete(), "{}", out.message);
+        let mp = PathBuf::from(out.model_path.unwrap());
+        assert!(mp.starts_with(&app) && mp.ends_with("models/free1/free1.model3.json"), "{mp:?}");
+        assert!(app.join(CORE_FILE).is_file());
+    }
+
+    #[test]
+    fn mac_app_bundle_pack_inside_resources_and_beside_app() {
+        let d = Tmp::new("macapp");
+        let h = &d.0;
+        let app_dir = h.join("Applications/lingdot-desktop-pet.app");
+        let exe = app_dir.join("Contents/MacOS/desktop-pet");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, b"\xcf\xfa\xed\xfe").unwrap();
+        assert!(app_bundle_pack_dirs(&exe).is_empty(), "public build: nothing");
+        let inside = app_dir.join("Contents/Resources").join(BUNDLE_PACK_DIR);
+        make_model(&inside.join("xiaomiao-live2d/free1"), "free1");
+        make_core(&inside.join("xiaomiao-live2d").join(CORE_FILE));
+        assert_eq!(app_bundle_pack_dirs(&exe), vec![inside.clone()]);
+        let beside = h.join("Applications").join(BUNDLE_PACK_DIR);
+        fs::create_dir_all(&beside).unwrap();
+        assert_eq!(app_bundle_pack_dirs(&exe), vec![inside.clone(), beside]);
+        // not an app bundle layout -> nothing (e.g. a dev binary in target/debug)
+        assert!(app_bundle_pack_dirs(&h.join("target/debug/desktop-pet")).is_empty());
+        // the scanner imports the sealed model and it beats a newer one in Downloads
+        let app = h.join("appdata/live2d");
+        make_model(&h.join("Downloads/other"), "other");
+        let mut roots = ScanRoots::standard(h, &app);
+        roots.preferred.extend(app_bundle_pack_dirs(&exe));
         let out = scan_and_import(&roots, None, false);
         assert!(out.complete(), "{}", out.message);
         let mp = PathBuf::from(out.model_path.unwrap());
