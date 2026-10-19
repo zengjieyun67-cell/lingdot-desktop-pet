@@ -42,7 +42,7 @@ export function ChatView() {
   if (!settings.chatEnabled) {
     return (
       <Empty title="聊天还没开启" quip="想和本猫聊天？先去设置里填个 Key 再说。">
-        <span>推荐用 DeepSeek，粘贴 API Key 就能用；不开启也没关系，{settings.petName}的离线台词照常出现</span>
+        <span>支持 DeepSeek、OpenAI、Kimi、通义千问、智谱、Gemini、Claude、Ollama 等任意 OpenAI 兼容服务，选好服务商粘贴 API Key 就能用；不开启也没关系，{settings.petName}的离线台词照常出现</span>
         <Button small variant="primary" onClick={() => {
             requestSettingsSection("chat");
             setTab("settings");
