@@ -263,6 +263,10 @@ pub fn run() {
             WindowEvent::Resized(size) if window.label().starts_with(notes_cmds::NOTE_PREFIX) => {
                 notes_cmds::note_geometry_event(window, None, Some((size.width, size.height)));
             }
+            WindowEvent::ScaleFactorChanged { .. } if window.label() == windows::DESKTOP_LABEL => {
+                // moved to / re-configured monitor: keep 桌面模式 covering the whole screen
+                windows::refit_desktop(window.app_handle());
+            }
             WindowEvent::CloseRequested { api, .. } => {
                 // Windows are never destroyed; quitting is via tray / settings.
                 api.prevent_close();
