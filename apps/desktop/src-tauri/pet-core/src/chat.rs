@@ -17,21 +17,11 @@ pub struct ChatMessage {
     pub content: String,
 }
 
-/// https only, except plain http for local servers (Ollama, LM Studio …).
+/// Full `/chat/completions` URL for a base URL (https only, plain http for local
+/// servers). Base URLs with or without `/v1` (or the full URL) are all accepted; see
+/// `chat_provider::resolve_base_url`.
 pub fn validate_endpoint(endpoint: &str) -> Result<String, String> {
-    let u = url::Url::parse(endpoint.trim()).map_err(|_| "接口地址不是有效的 URL".to_string())?;
-    let host = u.host_str().unwrap_or("");
-    let local = host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]";
-    match u.scheme() {
-        "https" => {}
-        "http" if local => {}
-        _ => return Err("接口地址必须是 https（本机 localhost 可用 http）".into()),
-    }
-    if u.username() != "" || u.password().is_some() {
-        return Err("接口地址中不能包含账号密码".into());
-    }
-    let base = u.as_str().trim_end_matches('/').to_string();
-    Ok(if base.ends_with("/chat/completions") { base } else { format!("{base}/chat/completions") })
+    crate::chat_provider::completions_url(endpoint)
 }
 
 /// True when the endpoint (base URL or full URL) points at DeepSeek's official API.
