@@ -15,6 +15,8 @@ export interface PetRenderer {
   setEmotion(emotion: Emotion): void;
   /** Cursor direction relative to the pet's head, in logical px. */
   lookAt(dx: number, dy: number): void;
+  /** Where the head is inside the stage, as fractions (0..1); null/absent = default (0.5, 0.38). */
+  headAnchor?(): { x: number; y: number } | null;
   setAnimationsEnabled(enabled: boolean): void;
   /** One-shot reaction when the user clicks/taps the pet. */
   poke(): void;
