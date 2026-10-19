@@ -1,3 +1,4 @@
+import type { ChatProvider } from "../lib/chatPresets";
 export type {
   Site,
   Task,
@@ -41,10 +42,13 @@ export interface AppSettings {
   mealReminders: boolean;
   lateNightReminders: boolean;
   chatEnabled: boolean;
-  /** UI preset: deepseek | custom */
-  chatProvider: "deepseek" | "custom";
+  /** Chat preset id (see lib/chatPresets.ts); every preset is OpenAI-compatible. */
+  chatProvider: ChatProvider;
+  /** Base URL (with or without /v1, or the full /chat/completions URL). */
   chatEndpoint: string;
   chatModel: string;
+  /** Chat settings schema version, owned by Rust (2 = provider presets). */
+  chatConfigVersion?: number;
   /** Where the user last dragged the panel (physical px); null = beside the pet. */
   panelPosition: { x: number; y: number } | null;
   // phase 2: voice
@@ -235,6 +239,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   chatProvider: "deepseek",
   chatEndpoint: "https://api.deepseek.com",
   chatModel: "deepseek-flash",
+  chatConfigVersion: 2,
   panelPosition: null,
   voiceEnabled: false,
   voiceName: "",
