@@ -28,6 +28,10 @@ fn roots(app: &AppHandle, folder: Option<PathBuf>) -> Result<ScanRoots, String> 
                         Err(e) => eprintln!("embedded Live2D pack: {e}"),
                     }
                 }
+                // macOS: a personal build may seal the model into the bundle
+                // (X.app/Contents/Resources/live2d-pack) or put a live2d-pack folder beside X.app.
+                #[cfg(target_os = "macos")]
+                r.preferred.extend(live2d_scan::app_bundle_pack_dirs(&exe));
                 #[cfg(not(target_os = "macos"))]
                 if let Some(dir) = exe.parent() {
                     r.preferred.push(dir.to_path_buf());
