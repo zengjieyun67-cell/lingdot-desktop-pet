@@ -84,6 +84,10 @@ export function patchRenderOrders(live2dModel: any): void {
   });
 }
 
+/** Where the face sits, as a fraction of the model's drawn height from its top. */
+export const HEAD_FRACTION = 0.13;
+const clampFrac = (v: number) => (Number.isFinite(v) ? Math.min(0.95, Math.max(0.05, v)) : 0.3);
+
 /** Part of the model height shown in the half-body (bust) framing. */
 export const BUST_FRACTION = 0.58;
 
@@ -215,6 +219,7 @@ export class Live2DRenderer implements PetRenderer {
       const scale = Math.min(w / bw, visibleH / (bh * BUST_FRACTION));
       this.model.scale.set(scale);
       this.model.position.set(w / 2 - (b.x + bw / 2) * scale, visibleH * 0.03 - b.y * scale);
+      this.head = { x: 0.5, y: clampFrac((visibleH * 0.03 + bh * scale * HEAD_FRACTION) / h) };
       this.info = `模型 ${Math.round(bw)}×${Math.round(bh)}，半身特写，缩放 ${scale.toFixed(3)}，窗口 ${w}×${h}`;
       return;
     }
@@ -222,6 +227,7 @@ export class Live2DRenderer implements PetRenderer {
     this.model.scale.set(scale);
     // centre horizontally, sit on the bottom edge
     this.model.position.set(w / 2 - (b.x + bw / 2) * scale, h - (b.y + bh) * scale);
+    this.head = { x: 0.5, y: clampFrac((h - bh * scale + bh * scale * HEAD_FRACTION) / h) };
     this.info = `模型 ${Math.round(bw)}×${Math.round(bh)}，缩放 ${scale.toFixed(3)}，窗口 ${w}×${h}`;
   }
 
@@ -262,12 +268,23 @@ export class Live2DRenderer implements PetRenderer {
     if (group) this.model.motion(group, undefined, 2);
   }
 
+  /**
+   * Turn head/eyes. Drives the focus controller directly with the soft -1..1 value:
+   * `model.focus()` in pixi-live2d-display keeps only the *direction* (atan2) at full strength,
+   * so any target — including "straight ahead" — became a full turn, and a stale target froze
+   * her looking one way (桌面模式 bug, build-11).
+   */
   lookAt(dx: number, dy: number): void {
-    if (!this.model || !this.container || !this.animations) return;
-    const { x, y } = normaliseLook(dx, dy);
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
-    this.model.focus(w / 2 + x * w, h * 0.35 + y * h);
+    if (!this.model) return;
+    const { x, y } = this.animations ? normaliseLook(dx, dy) : { x: 0, y: 0 };
+    const fc = this.model.internalModel?.focusController;
+    if (fc && typeof fc.focus === "function") fc.focus(x, -y); // Live2D: +y = up
+  }
+
+  /** Head position inside the stage (fractions), measured from the fitted model. */
+  private head = { x: 0.5, y: 0.3 };
+  headAnchor(): { x: number; y: number } {
+    return this.head;
   }
 
   setAnimationsEnabled(enabled: boolean): void {
